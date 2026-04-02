@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/home",      "destination": "/home.html" },
+    { "source": "/activity",  "destination": "/activity.html" },
+    { "source": "/people",    "destination": "/people.html" },
+    { "source": "/profile",   "destination": "/profile.html" },
+    { "source": "/resources", "destination": "/resources.html" },
+    { "source": "/admin",     "destination": "/admin.html" },
+    { "source": "/pending",   "destination": "/pending.html" }
+  ]
+}

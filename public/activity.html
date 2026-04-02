@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>活動・イベント | nadaclub</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="app-header"><h1>📋 活動・イベント</h1></header>
+
+<div class="tab-bar" id="tab-bar">
+  <button class="tab-item active" onclick="switchTab('feed')">📝 活動記録</button>
+  <button class="tab-item"        onclick="switchTab('events')">📅 イベント予定</button>
+</div>
+
+<div id="alert-area"></div>
+<div id="app"><div class="loading">読み込み中…</div></div>
+
+<nav class="bottom-nav">
+  <a href="/home.html"     class="nav-item"><span class="nav-icon">🏠</span>ホーム</a>
+  <a href="/activity.html" class="nav-item active"><span class="nav-icon">📋</span>活動</a>
+  <a href="/people.html"   class="nav-item"><span class="nav-icon">👥</span>ひとを探す</a>
+  <a href="/resources.html"class="nav-item"><span class="nav-icon">📦</span>リソース</a>
+  <a href="/profile.html"  class="nav-item"><span class="nav-icon">👤</span>マイページ</a>
+</nav>
+
+<script>
+const API = (path, opt={}) => fetch(path, { headers: { Authorization: 'Bearer ' + localStorage.getItem('nc_token'), 'Content-Type':'application/json' }, ...opt });
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const DAYS = ['日','月','火','水','木','金','土'];
+const CATS = {
+  env:   { label:'環境・自然', icon:'🌿', cls:'cat-env' },
+  food:  { label:'食・農業',   icon:'🌾', cls:'cat-food' },
+  child: { label:'子ども・教育',icon:'🧒', cls:'cat-child' },
+  elder: { label:'高齢者支援', icon:'🤝', cls:'cat-elder' },
+  art:   { label:'文化・芸術', icon:'🎨', cls:'cat-art' },
+  local: { label:'地域活性',   icon:'🏘️', cls:'cat-local' },
+  other: { label:'その他',     icon:'💬', cls:'cat-other' },
+};
+
+let activeTab = 'feed';
+let catFilter = 'all';
+let mineFilter = false;
+let evFilter = 'upcoming';
+let myUserId = null;
+
+function showAlert(msg, type='success') {
+  document.getElementById('alert-area').innerHTML = `<div class="alert alert-${type}">${esc(msg)}</div>`;
+  setTimeout(() => document.getElementById('alert-area').innerHTML = '', 3000);
+}
+
+function diffDays(dateStr) {
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  const t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((d - t) / 86400000);
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-item').forEach((el,i) => el.classList.toggle('active', (i===0&&tab==='feed')||(i===1&&tab==='events')));
+  render();
+}
+
+async function render() {
+  document.getElementById('app').innerHTML = '<div class="loading">読み込み中…</div>';
+  if (activeTab === 'feed') await renderFeed();
+  else await renderEvents();
+}
+
+async function renderFeed() {
+  const params = new URLSearchParams({ category: catFilter });
+  if (mineFilter) params.set('mine','1');
+  const res = await API('/api/activities?' + params);
+  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/'; }
+  const data = await res.json();
+
+  let html = `
+  <!-- 投稿フォーム -->
+  <div class="form-card">
+    <div class="form-title">＋ 活動を記録する</div>
+    <div class="form-group"><label>タイトル <span class="required">*</span></label>
+      <input id="ac-title" type="text" placeholder="例：六甲川の清掃を10人で実施しました"></div>
+    <div class="form-row">
+      <div class="form-group"><label>カテゴリ</label>
+        <select id="ac-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+      <div class="form-group"><label>活動日</label>
+        <input id="ac-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    </div>
+    <div class="form-group"><label>活動内容</label>
+      <textarea id="ac-desc" placeholder="どんな活動をしましたか？"></textarea></div>
+    <div class="form-group"><label>⭐ 成果・インパクト</label>
+      <input id="ac-impact" type="text" placeholder="例：ゴミ30kg回収、参加者から喜びの声"></div>
+    <div class="form-group"><label>👥 届いた人数（概算）</label>
+      <input id="ac-reach" type="number" min="0" placeholder="例：15" style="max-width:120px"></div>
+    <button class="btn btn-primary btn-full" onclick="postActivity()">記録する</button>
+  </div>
+
+  <!-- カテゴリフィルター -->
+  <div class="filter-row">
+    ${[['all','🌐','すべて'],...Object.entries(CATS).map(([k,v])=>[k,v.icon,v.label])].map(([k,icon,label])=>
+      `<div class="filter-chip${catFilter===k?' active':''}" onclick="setCat('${k}')">${icon} ${label}</div>`
+    ).join('')}
+  </div>
+  <div class="filter-row" style="padding-top:0">
+    <div class="filter-chip${!mineFilter?' active':''}" onclick="setMine(false)">全員</div>
+    <div class="filter-chip${mineFilter?' active':''}" onclick="setMine(true)">自分の記録</div>
+  </div>`;
+
+  if (!data.length) {
+    html += '<div class="empty-state"><div class="empty-icon">📝</div><p>活動記録がありません。<br>最初の活動を記録しましょう！</p></div>';
+  } else {
+    data.forEach(a => {
+      const cat = CATS[a.category] || CATS.other;
+      const isMe = a.user_id === myUserId;
+      html += `<div class="activity-card">
+        <div class="ac-head">
+          <div class="ac-avatar">${esc(a.users?.avatar||'😊')}</div>
+          <div>
+            <div class="ac-org">${esc(a.users?.name||'')}</div>
+            <div class="ac-area">📍 ${esc(a.users?.area||'')}</div>
+          </div>
+          <span class="cat-badge ${cat.cls}">${cat.icon} ${cat.label}</span>
+        </div>
+        <div class="ac-title">${esc(a.title)}</div>
+        ${a.description ? `<div class="ac-desc">${esc(a.description)}</div>` : ''}
+        ${a.impact ? `<div class="impact-row">⭐ ${esc(a.impact)}</div>` : ''}
+        <div class="ac-footer">
+          ${a.reach_count ? `<span style="font-size:12px;color:var(--green-text)">👥 ${a.reach_count}人に届く</span>` : ''}
+          <span class="ac-date">${a.act_date||''}</span>
+          ${isMe ? `<button class="delete-btn" onclick="deleteActivity(${a.id})">削除</button>` : ''}
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('app').innerHTML = html;
+}
+
+async function renderEvents() {
+  const res = await API('/api/events?filter=' + evFilter);
+  const data = await res.json();
+
+  let html = `
+  <!-- イベント登録フォーム -->
+  <div class="form-card">
+    <div class="form-title">📅 イベント・活動予定を登録する</div>
+    <div class="form-group"><label>タイトル <span class="required">*</span></label>
+      <input id="ev-title" type="text" placeholder="例：六甲川の清掃をします！"></div>
+    <div class="form-row">
+      <div class="form-group"><label>日付 <span class="required">*</span></label>
+        <input id="ev-date" type="date" value="${new Date(Date.now()+7*86400000).toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>時間（任意）</label>
+        <input id="ev-time" type="time"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>カテゴリ</label>
+        <select id="ev-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+      <div class="form-group"><label>定員（任意）</label>
+        <input id="ev-cap" type="number" min="0" placeholder="例：20"></div>
+    </div>
+    <div class="form-group"><label>場所</label>
+      <input id="ev-loc" type="text" placeholder="例：六甲川 王子橋付近"></div>
+    <div class="form-group"><label>詳細・参加方法</label>
+      <textarea id="ev-desc" placeholder="持ち物・集合場所・参加方法など"></textarea></div>
+    <button class="btn btn-primary btn-full" onclick="postEvent()">登録する</button>
+  </div>
+
+  <!-- フィルター -->
+  <div class="filter-row">
+    <div class="filter-chip${evFilter==='upcoming'?' active':''}" onclick="setEvFilter('upcoming')">📅 予定</div>
+    <div class="filter-chip${evFilter==='past'?' active':''}" onclick="setEvFilter('past')">✅ 過去</div>
+    <div class="filter-chip${evFilter==='mine'?' active':''}" onclick="setEvFilter('mine')">🙋 自分</div>
+  </div>`;
+
+  if (!data.length) {
+    html += '<div class="empty-state"><div class="empty-icon">📅</div><p>イベントはありません。<br>最初のイベントを登録しましょう！</p></div>';
+  } else {
+    data.forEach(ev => {
+      const d = new Date(ev.event_date);
+      const diff = diffDays(ev.event_date);
+      const cat = CATS[ev.category] || CATS.other;
+      const isMe = ev.user_id === myUserId;
+      const time = ev.event_time ? ev.event_time.slice(0,5) : '';
+      let badge = '';
+      if (diff < 0) badge = '<span class="ev-badge badge-done">終了</span>';
+      else if (ev.joined) badge = '<span class="ev-badge badge-joined">参加表明済み</span>';
+      else if (diff <= 3) badge = `<span class="ev-badge badge-soon">あと${diff}日</span>`;
+      else badge = '<span class="ev-badge badge-new">新着</span>';
+
+      html += `<div class="event-card">
+        <div class="ev-head">
+          <div class="ev-date-badge">
+            <div class="ev-month">${d.getMonth()+1}月</div>
+            <div class="ev-day">${d.getDate()}</div>
+            <div class="ev-dow">${DAYS[d.getDay()]}曜</div>
+          </div>
+          <div class="ev-title-wrap">
+            <div class="ev-title">${esc(ev.title)}</div>
+            <div style="margin-top:4px"><span class="cat-badge ${cat.cls}" style="font-size:11px">${cat.icon} ${cat.label}</span></div>
+          </div>
+          ${badge}
+        </div>
+        <div class="ev-meta">
+          ${time ? `<span class="meta-item">⏰ ${time}</span>` : ''}
+          ${ev.location ? `<span class="meta-item">📍 ${esc(ev.location)}</span>` : ''}
+          ${ev.capacity ? `<span class="meta-item">👥 定員${ev.capacity}名</span>` : ''}
+          <span class="meta-item">✋ ${ev.join_count||0}人参加表明</span>
+        </div>
+        ${ev.description ? `<div class="ev-body">${esc(ev.description)}</div>` : ''}
+        <div class="ev-footer">
+          <div class="host-avatar">${esc(ev.users?.avatar||'😊')}</div>
+          <span class="host-name">${esc(ev.users?.name||'')}</span>
+          ${isMe
+            ? `<button class="btn btn-sm btn-danger" onclick="deleteEvent(${ev.id})">削除</button>`
+            : diff >= 0
+              ? ev.joined
+                ? `<button class="btn btn-sm btn-joined" onclick="cancelJoin(${ev.id})">参加取消</button>`
+                : `<button class="btn btn-sm btn-primary" onclick="joinEvent(${ev.id})">参加を表明する</button>`
+              : ''
+          }
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('app').innerHTML = html;
+}
+
+async function postActivity() {
+  const title = document.getElementById('ac-title').value.trim();
+  if (!title) return showAlert('タイトルを入力してください', 'error');
+  const body = {
+    title,
+    description: document.getElementById('ac-desc').value.trim(),
+    impact:      document.getElementById('ac-impact').value.trim(),
+    category:    document.getElementById('ac-cat').value,
+    act_date:    document.getElementById('ac-date').value,
+    reach_count: document.getElementById('ac-reach').value || 0,
+  };
+  const res = await API('/api/activities', { method:'POST', body: JSON.stringify(body) });
+  if (res.ok) { showAlert('活動を記録しました！'); renderFeed(); }
+  else showAlert('エラーが発生しました', 'error');
+}
+
+async function deleteActivity(id) {
+  if (!confirm('この活動記録を削除しますか？')) return;
+  await API('/api/activities', { method:'POST', body: JSON.stringify({ delete_id: id }) });
+  renderFeed();
+}
+
+async function postEvent() {
+  const title = document.getElementById('ev-title').value.trim();
+  const event_date = document.getElementById('ev-date').value;
+  if (!title || !event_date) return showAlert('タイトルと日付は必須です', 'error');
+  const body = {
+    title, event_date,
+    event_time:  document.getElementById('ev-time').value || null,
+    category:    document.getElementById('ev-cat').value,
+    capacity:    document.getElementById('ev-cap').value || 0,
+    location:    document.getElementById('ev-loc').value.trim(),
+    description: document.getElementById('ev-desc').value.trim(),
+  };
+  const res = await API('/api/events', { method:'POST', body: JSON.stringify(body) });
+  if (res.ok) { showAlert('イベントを登録しました！'); renderEvents(); }
+  else showAlert('エラーが発生しました', 'error');
+}
+
+async function deleteEvent(id) {
+  if (!confirm('このイベントを削除しますか？')) return;
+  await API('/api/events', { method:'POST', body: JSON.stringify({ delete_id: id }) });
+  renderEvents();
+}
+
+async function joinEvent(id) {
+  await API('/api/events', { method:'POST', body: JSON.stringify({ action: 'join', event_id: id }) });
+  showAlert('参加を表明しました！'); renderEvents();
+}
+
+async function cancelJoin(id) {
+  await API('/api/events', { method:'POST', body: JSON.stringify({ action: 'cancel_join', event_id: id }) });
+  renderEvents();
+}
+
+function setCat(cat)  { catFilter = cat; renderFeed(); }
+function setMine(v)   { mineFilter = v; renderFeed(); }
+function setEvFilter(f) { evFilter = f; renderEvents(); }
+
+async function init() {
+  const t = localStorage.getItem('nc_token');
+  if (!t) return location.href = '/index.html';
+  const profRes = await API('/api/profile');
+  if (profRes.status === 401) { localStorage.removeItem('nc_token'); return location.href='/'; }
+  const prof = await profRes.json();
+  myUserId = prof.user?.id;
+  if (location.hash === '#events') switchTab('events');
+  else render();
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灘クラブ | nadaclub</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body { background: var(--green-light); display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.login-wrap { width: 100%; max-width: 360px; }
+.logo-area { text-align: center; margin-bottom: 32px; }
+.logo-icon { font-size: 56px; margin-bottom: 12px; }
+.logo-title { font-size: 26px; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
+.logo-sub { font-size: 13px; color: var(--text2); }
+.login-card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); padding: 28px 24px; }
+.login-lead { font-size: 14px; color: var(--text2); text-align: center; margin-bottom: 24px; line-height: 1.7; }
+.divider { text-align: center; font-size: 12px; color: var(--text3); margin: 16px 0; }
+.error-msg { color: #C03020; font-size: 13px; text-align: center; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="logo-area">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-title">nadaclub</div>
+    <div class="logo-sub">灘区つながりマップ</div>
+  </div>
+  <div class="login-card">
+    <div class="login-lead">
+      灘区で活動する人・団体がつながるプラットフォームです。<br>LINEアカウントでかんたんにログインできます。
+    </div>
+    <div id="error-area"></div>
+    <a href="/api/auth?action=login" class="line-btn">
+      <svg class="line-logo" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.24 2 11.44c0 4.38 3.87 8.04 9.09 8.73l.56.08c.27.04.27.04.35.27l.12.57c.1.47.39.47.58.1l.47-1.8c.06-.23.17-.28.37-.2 3.93.99 6.96-1.74 6.96-5.75C20 6.24 17.52 2 12 2z"/></svg>
+      LINEでログイン
+    </a>
+    <div class="divider">——— はじめての方も登録不要 ———</div>
+    <p style="font-size:12px;color:var(--text3);text-align:center;line-height:1.7">
+      LINEアカウントで自動登録されます。<br>最初は管理者の承認をお待ちください。
+    </p>
+  </div>
+</div>
+<script>
+const p = new URLSearchParams(location.search);
+if (p.get('error')) {
+  document.getElementById('error-area').innerHTML =
+    '<p class="error-msg">ログインに失敗しました。もう一度お試しください。</p>';
+}
+// すでにトークンがあればホームへ
+const t = localStorage.getItem('nc_token');
+if (t) location.href = '/home.html';
+</script>
+</body>
+</html>

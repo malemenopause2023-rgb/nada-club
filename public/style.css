@@ -1,0 +1,407 @@
+/* ============================================================
+   nadaclub 共通スタイル
+   モバイルファースト・LINEブラウザ対応
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green:       #2D6A1F;
+  --green-light: #EAF4E0;
+  --green-mid:   #A8D490;
+  --green-dark:  #1A4A10;
+  --green-text:  #3A7A20;
+  --orange:      #E07030;
+  --orange-bg:   #FDE8D0;
+  --yellow-bg:   #FFF9E0;
+  --yellow-bd:   #E8D060;
+  --bg:          #F4F6F0;
+  --surface:     #FFFFFF;
+  --border:      #E0E8D8;
+  --text:        #1A2A10;
+  --text2:       #5A6A50;
+  --text3:       #8A9A80;
+  --radius:      12px;
+  --radius-sm:   8px;
+  --nav-h:       56px;
+}
+
+html { font-size: 16px; }
+body {
+  font-family: 'Hiragino Sans', 'Meiryo UI', 'Yu Gothic UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  padding-bottom: calc(var(--nav-h) + 16px);
+}
+
+a { color: var(--green); text-decoration: none; }
+
+/* ============================================================
+   ヘッダー
+   ============================================================ */
+.app-header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 16px;
+  height: 52px;
+}
+.app-header h1 {
+  font-size: 17px; font-weight: 600;
+  color: var(--green-dark); flex: 1;
+}
+.app-header .badge {
+  background: var(--orange); color: #fff;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 7px; border-radius: 10px;
+}
+
+/* ============================================================
+   ボトムナビゲーション
+   ============================================================ */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  height: var(--nav-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px; cursor: pointer;
+  font-size: 10px; color: var(--text3);
+  font-weight: 500; text-decoration: none;
+  padding: 6px 0;
+}
+.nav-item.active { color: var(--green); }
+.nav-icon { font-size: 22px; line-height: 1; }
+
+/* ============================================================
+   コンテナ・セクション
+   ============================================================ */
+.container { padding: 0 14px; }
+.section-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--text3); letter-spacing: .06em;
+  padding: 14px 14px 8px; text-transform: uppercase;
+}
+
+/* ============================================================
+   カテゴリフィルター
+   ============================================================ */
+.filter-row {
+  display: flex; gap: 6px; overflow-x: auto;
+  padding: 0 14px 10px;
+  scrollbar-width: none;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex-shrink: 0; padding: 6px 14px;
+  border-radius: 20px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text2);
+  white-space: nowrap;
+}
+.filter-chip.active {
+  background: var(--green); color: #fff; border-color: var(--green);
+}
+
+/* ============================================================
+   活動カード
+   ============================================================ */
+.activity-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px;
+  margin: 0 14px 12px;
+}
+.ac-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.ac-avatar {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--green-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.ac-org { font-size: 13px; font-weight: 600; color: var(--text); }
+.ac-area { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.cat-badge {
+  margin-left: auto; flex-shrink: 0;
+  padding: 3px 9px; border-radius: 10px;
+  font-size: 11px; font-weight: 600;
+}
+.cat-env   { background: #E8F5E0; color: #2D6A1F; }
+.cat-food  { background: #FFF3E0; color: #C07000; }
+.cat-child { background: #FFF8E0; color: #A08000; }
+.cat-elder { background: #E8F4FF; color: #1060A0; }
+.cat-art   { background: #F5E8FF; color: #7030A0; }
+.cat-local { background: #FFE8E8; color: #A03020; }
+.cat-other { background: #F0F0F0; color: #606060; }
+
+.ac-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; line-height: 1.4; }
+.ac-desc  { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 8px; }
+
+.recruit-box {
+  background: var(--green-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px;
+}
+.recruit-label { font-size: 11px; font-weight: 600; color: var(--green); flex-shrink: 0; padding-top: 2px; }
+.recruit-tags  { display: flex; flex-wrap: wrap; gap: 4px; }
+.recruit-tag {
+  font-size: 11px; color: var(--green-text);
+  background: var(--surface);
+  border: 1px solid var(--green-mid);
+  border-radius: 6px; padding: 2px 8px;
+}
+.impact-row {
+  font-size: 12px; color: var(--green-text);
+  display: flex; align-items: center; gap: 4px; margin-top: 4px;
+}
+.ac-footer {
+  display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px;
+}
+.ac-date { font-size: 12px; color: var(--text3); margin-left: auto; }
+.delete-btn {
+  font-size: 12px; color: #C03020; background: none;
+  border: none; cursor: pointer; padding: 2px 8px;
+}
+
+/* ============================================================
+   イベントカード
+   ============================================================ */
+.event-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin: 0 14px 12px;
+  overflow: hidden;
+}
+.ev-head {
+  display: flex; gap: 12px; padding: 14px 14px 10px; align-items: flex-start;
+}
+.ev-date-badge {
+  flex-shrink: 0; width: 50px;
+  background: var(--green-light); border-radius: var(--radius-sm);
+  padding: 6px 0; text-align: center;
+}
+.ev-month { font-size: 10px; font-weight: 600; color: var(--green); line-height: 1.2; }
+.ev-day   { font-size: 24px; font-weight: 600; color: var(--green-dark); line-height: 1; }
+.ev-dow   { font-size: 10px; color: var(--green-text); line-height: 1.6; }
+.ev-title-wrap { flex: 1; }
+.ev-title { font-size: 15px; font-weight: 600; line-height: 1.4; }
+.ev-badge {
+  font-size: 11px; padding: 3px 9px;
+  border-radius: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+}
+.badge-soon { background: var(--orange-bg); color: var(--orange); }
+.badge-new  { background: var(--green-light); color: var(--green); }
+.badge-done { background: #F0F0F0; color: #888; }
+.badge-joined { background: #E8F0FF; color: #2050C0; }
+
+.ev-meta {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 0 14px 10px;
+}
+.meta-item {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text2);
+}
+.ev-body {
+  font-size: 13px; color: var(--text2); line-height: 1.6;
+  padding: 0 14px 10px;
+}
+.ev-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--border);
+}
+.host-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--green-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+.host-name { font-size: 12px; color: var(--text2); flex: 1; }
+
+/* ============================================================
+   ボタン
+   ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 9px 20px;
+  border-radius: 20px; font-size: 14px; font-weight: 600;
+  border: none; cursor: pointer; transition: opacity .15s;
+}
+.btn:active { opacity: .7; }
+.btn-primary { background: var(--green); color: #fff; }
+.btn-outline { background: var(--surface); color: var(--green); border: 1.5px solid var(--green); }
+.btn-danger  { background: #FEE; color: #C03020; border: 1px solid #FCC; }
+.btn-full    { width: 100%; border-radius: var(--radius-sm); }
+.btn-sm      { padding: 6px 14px; font-size: 13px; }
+.btn-joined  { background: #E8F0FF; color: #2050C0; border: 1.5px solid #B0C8F8; }
+
+/* ============================================================
+   フォーム
+   ============================================================ */
+.form-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 16px; margin: 0 14px 16px;
+}
+.form-title { font-size: 15px; font-weight: 600; color: var(--green-dark); margin-bottom: 14px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; }
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 14px; font-family: inherit;
+  background: var(--surface); color: var(--text);
+  outline: none;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { border-color: var(--green); }
+.form-group textarea { resize: vertical; min-height: 72px; }
+.form-row { display: flex; gap: 10px; }
+.form-row .form-group { flex: 1; }
+.required { color: #C03020; }
+
+/* ============================================================
+   ひとカード
+   ============================================================ */
+.person-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px; margin: 0 14px 12px;
+}
+.person-head {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+}
+.person-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--green-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; flex-shrink: 0;
+}
+.person-name { font-size: 16px; font-weight: 600; }
+.person-area { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.person-type {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 11px; padding: 3px 9px; border-radius: 10px;
+  background: var(--yellow-bg); color: #806010;
+  border: 1px solid var(--yellow-bd); font-weight: 600;
+}
+.person-bio { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
+.offer-want-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.ow-tag {
+  font-size: 11px; padding: 3px 9px; border-radius: 8px;
+  border: 1px solid var(--border); color: var(--text2); background: var(--bg);
+}
+.ow-tag.offer { border-color: var(--green-mid); color: var(--green-text); background: var(--green-light); }
+
+/* ============================================================
+   通知バナー
+   ============================================================ */
+.notice-banner {
+  background: var(--yellow-bg); border: 1px solid var(--yellow-bd);
+  border-radius: var(--radius); padding: 12px 14px;
+  margin: 0 14px 12px;
+}
+.notice-title { font-size: 13px; font-weight: 600; color: #806010; margin-bottom: 8px; }
+.notice-item  { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.notice-item:last-child { margin-bottom: 0; }
+
+/* ============================================================
+   統計バー
+   ============================================================ */
+.stats-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-around; padding: 10px 0;
+}
+.stat-item { text-align: center; }
+.stat-num   { font-size: 20px; font-weight: 700; color: var(--green); }
+.stat-label { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* ============================================================
+   タブバー
+   ============================================================ */
+.tab-bar {
+  display: flex; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 4px;
+}
+.tab-item {
+  flex: 1; text-align: center; padding: 9px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600;
+  color: var(--text3); cursor: pointer;
+  text-decoration: none; border: none; background: none;
+}
+.tab-item.active { background: var(--green); color: #fff; }
+
+/* ============================================================
+   ヒーローストリップ
+   ============================================================ */
+.hero-strip {
+  background: linear-gradient(135deg, var(--green) 0%, #4A9A30 100%);
+  padding: 18px 16px 16px; color: #fff;
+}
+.hero-strip h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.hero-strip p  { font-size: 13px; opacity: .85; }
+
+/* ============================================================
+   空状態
+   ============================================================ */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--text3);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; line-height: 1.7; }
+
+/* ============================================================
+   アラート
+   ============================================================ */
+.alert { padding: 12px 14px; border-radius: var(--radius-sm); margin: 0 14px 10px; font-size: 14px; }
+.alert-success { background: var(--green-light); color: var(--green-dark); }
+.alert-error   { background: #FEE; color: #C03020; }
+
+/* ============================================================
+   ローディング
+   ============================================================ */
+.loading { text-align: center; padding: 40px; color: var(--text3); font-size: 14px; }
+
+/* ============================================================
+   LINE ログインボタン
+   ============================================================ */
+.line-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 14px;
+  background: #06C755; color: #fff;
+  border-radius: var(--radius); border: none;
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  text-decoration: none;
+}
+.line-btn:active { opacity: .85; }
+.line-logo { width: 26px; height: 26px; }
+
+/* ============================================================
+   レスポンシブ（480px以上はセンタリング）
+   ============================================================ */
+@media (min-width: 480px) {
+  body { max-width: 480px; margin: 0 auto; }
+  .bottom-nav { max-width: 480px; left: 50%; transform: translateX(-50%); }
+}

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>リソース | nadaclub</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="app-header"><h1>📦 リソースボード</h1></header>
+
+<div id="alert-area"></div>
+<div id="app"><div class="loading">読み込み中…</div></div>
+
+<nav class="bottom-nav">
+  <a href="/home.html"     class="nav-item"><span class="nav-icon">🏠</span>ホーム</a>
+  <a href="/activity.html" class="nav-item"><span class="nav-icon">📋</span>活動</a>
+  <a href="/people.html"   class="nav-item"><span class="nav-icon">👥</span>ひとを探す</a>
+  <a href="/resources.html"class="nav-item active"><span class="nav-icon">📦</span>リソース</a>
+  <a href="/profile.html"  class="nav-item"><span class="nav-icon">👤</span>マイページ</a>
+</nav>
+
+<script>
+const API = (path, opt={}) => fetch(path, { headers: { Authorization: 'Bearer ' + localStorage.getItem('nc_token'), 'Content-Type':'application/json' }, ...opt });
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const CATS = {
+  env:   { label:'環境・自然', icon:'🌿', cls:'cat-env' },
+  food:  { label:'食・農業',   icon:'🌾', cls:'cat-food' },
+  child: { label:'子ども・教育',icon:'🧒', cls:'cat-child' },
+  elder: { label:'高齢者支援', icon:'🤝', cls:'cat-elder' },
+  art:   { label:'文化・芸術', icon:'🎨', cls:'cat-art' },
+  local: { label:'地域活性',   icon:'🏘️', cls:'cat-local' },
+  other: { label:'その他',     icon:'💬', cls:'cat-other' },
+};
+const RTYPES = { skill:'💪 スキル', time:'⏰ 時間', goods:'📦 モノ', space:'🏠 場所', money:'💰 資金', other:'💬 その他' };
+
+let catFilter = 'all';
+
+function showAlert(msg, type='success') {
+  document.getElementById('alert-area').innerHTML = `<div class="alert alert-${type}">${esc(msg)}</div>`;
+  setTimeout(() => document.getElementById('alert-area').innerHTML = '', 3000);
+}
+
+async function render() {
+  document.getElementById('app').innerHTML = '<div class="loading">読み込み中…</div>';
+
+  const params = new URLSearchParams();
+  if (catFilter !== 'all') params.set('category', catFilter);
+  const res = await API('/api/people?' + params);
+  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/'; }
+  const people = await res.json();
+
+  // offersを全員分集める
+  const allOffers = [];
+  people.forEach(u => {
+    (u.offers||[]).forEach(o => {
+      if (o) allOffers.push({ ...o, user: u });
+    });
+  });
+
+  let html = `
+  <div style="padding:10px 14px 4px;font-size:13px;color:var(--text2)">
+    地域で「できること」「提供できるもの」の一覧です。<br>気になる人には直接つながり申請できます。
+  </div>
+  <div class="filter-row" style="padding-top:10px">
+    <div class="filter-chip${catFilter==='all'?' active':''}" onclick="setCat('all')">🌐 すべて</div>
+    ${Object.entries(CATS).map(([k,v])=>`<div class="filter-chip${catFilter===k?' active':''}" onclick="setCat('${k}')">${v.icon} ${v.label}</div>`).join('')}
+  </div>`;
+
+  if (!allOffers.length) {
+    html += '<div class="empty-state"><div class="empty-icon">📦</div><p>リソースが登録されていません。<br>マイページから登録できます。</p></div>';
+  } else {
+    allOffers.forEach(o => {
+      const cat = CATS[o.category] || CATS.other;
+      const rtype = RTYPES[o.rtype] || RTYPES.other;
+      html += `<div class="activity-card">
+        <div class="ac-head">
+          <div class="ac-avatar">${esc(o.user.avatar||'😊')}</div>
+          <div>
+            <div class="ac-org">${esc(o.user.name)}</div>
+            <div class="ac-area">📍 ${esc(o.user.area||'')} ・ ${rtype}</div>
+          </div>
+          <span class="cat-badge ${cat.cls}">${cat.icon} ${cat.label}</span>
+        </div>
+        <div class="ac-title">${esc(o.title)}</div>
+        ${o.description ? `<div class="ac-desc">${esc(o.description)}</div>` : ''}
+        <div class="ac-footer">
+          <a href="/people.html" class="btn btn-sm btn-outline" onclick="sessionStorage.setItem('open_uid','${o.user.id}')">
+            この人に連絡する →
+          </a>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('app').innerHTML = html;
+}
+
+function setCat(cat) { catFilter = cat; render(); }
+
+async function init() {
+  if (!localStorage.getItem('nc_token')) return location.href='/';
+  render();
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ひとを探す | nadaclub</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="app-header"><h1>👥 ひとを探す</h1></header>
+
+<div id="alert-area"></div>
+<div id="app"><div class="loading">読み込み中…</div></div>
+
+<nav class="bottom-nav">
+  <a href="/home.html"     class="nav-item"><span class="nav-icon">🏠</span>ホーム</a>
+  <a href="/activity.html" class="nav-item"><span class="nav-icon">📋</span>活動</a>
+  <a href="/people.html"   class="nav-item active"><span class="nav-icon">👥</span>ひとを探す</a>
+  <a href="/resources.html"class="nav-item"><span class="nav-icon">📦</span>リソース</a>
+  <a href="/profile.html"  class="nav-item"><span class="nav-icon">👤</span>マイページ</a>
+</nav>
+
+<script>
+const API = (path, opt={}) => fetch(path, { headers: { Authorization: 'Bearer ' + localStorage.getItem('nc_token'), 'Content-Type':'application/json' }, ...opt });
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const CATS = {
+  env:'🌿 環境・自然', food:'🌾 食・農業', child:'🧒 子ども・教育',
+  elder:'🤝 高齢者支援', art:'🎨 文化・芸術', local:'🏘️ 地域活性', other:'💬 その他'
+};
+
+let catFilter = '';
+let viewUid = null;
+
+function showAlert(msg, type='success') {
+  document.getElementById('alert-area').innerHTML = `<div class="alert alert-${type}">${esc(msg)}</div>`;
+  setTimeout(() => document.getElementById('alert-area').innerHTML = '', 3000);
+}
+
+async function render() {
+  if (viewUid) return renderDetail(viewUid);
+  document.getElementById('app').innerHTML = '<div class="loading">読み込み中…</div>';
+
+  const params = new URLSearchParams();
+  if (catFilter) params.set('category', catFilter);
+  const res = await API('/api/people?' + params);
+  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/'; }
+  const data = await res.json();
+
+  let html = `
+  <div class="filter-row" style="padding-top:12px">
+    <div class="filter-chip${!catFilter?' active':''}" onclick="setCat('')">🌐 すべて</div>
+    ${Object.entries(CATS).map(([k,v])=>`<div class="filter-chip${catFilter===k?' active':''}" onclick="setCat('${k}')">${v}</div>`).join('')}
+  </div>`;
+
+  if (!data.length) {
+    html += '<div class="empty-state"><div class="empty-icon">👥</div><p>メンバーが見つかりませんでした</p></div>';
+  } else {
+    data.forEach(u => {
+      const offers = (u.offers||[]).filter(o=>o).slice(0,3);
+      const wants  = (u.wants||[]).filter(w=>w).slice(0,2);
+      html += `<div class="person-card" onclick="openDetail(${u.id})" style="cursor:pointer">
+        <div class="person-head">
+          <div class="person-avatar">${esc(u.avatar||'😊')}</div>
+          <div>
+            <div class="person-name">${esc(u.name)}</div>
+            <div class="person-area">📍 ${esc(u.area||'エリア未設定')}</div>
+          </div>
+          <span class="person-type">${u.type==='group'?'団体':'個人'}</span>
+        </div>
+        ${u.bio ? `<div class="person-bio">${esc(u.bio.slice(0,60))}${u.bio.length>60?'…':''}</div>` : ''}
+        <div class="offer-want-row">
+          ${offers.map(o=>`<span class="ow-tag offer">✨ ${esc(o.title)}</span>`).join('')}
+          ${wants.map(w=>`<span class="ow-tag">🔍 ${esc(w.title)}</span>`).join('')}
+        </div>
+        <div style="text-align:right;font-size:12px;color:var(--green-text)">プロフィールを見る →</div>
+      </div>`;
+    });
+  }
+  document.getElementById('app').innerHTML = html;
+}
+
+async function renderDetail(uid) {
+  document.getElementById('app').innerHTML = '<div class="loading">読み込み中…</div>';
+  const res = await API('/api/people?uid=' + uid);
+  const { user: u, offers, wants, connection } = await res.json();
+
+  const connStatus = connection?.status;
+  let connBtn = '';
+  if (!connStatus) {
+    connBtn = `<button class="btn btn-primary btn-full" onclick="requestConnect(${uid})">つながり申請を送る</button>`;
+  } else if (connStatus === 'pending') {
+    connBtn = `<button class="btn btn-outline btn-full" disabled>申請中…</button>`;
+  } else if (connStatus === 'accepted') {
+    connBtn = `<button class="btn btn-joined btn-full" disabled>✅ つながっています</button>`;
+  }
+
+  let html = `
+  <div style="padding:14px 14px 0">
+    <button onclick="back()" style="background:none;border:none;color:var(--green);font-size:14px;cursor:pointer;padding:0">← 一覧に戻る</button>
+  </div>
+  <div class="person-card" style="margin-top:12px">
+    <div class="person-head">
+      <div class="person-avatar" style="width:56px;height:56px;font-size:32px">${esc(u.avatar||'😊')}</div>
+      <div>
+        <div class="person-name" style="font-size:18px">${esc(u.name)}</div>
+        <div class="person-area">📍 ${esc(u.area||'エリア未設定')} ・ ${u.type==='group'?'団体':'個人'}</div>
+      </div>
+    </div>
+    ${u.bio ? `<div class="person-bio" style="font-size:14px">${esc(u.bio)}</div>` : ''}
+    ${connBtn}
+  </div>`;
+
+  if (offers.length) {
+    html += `<div class="section-title">✨ できること・提供できること</div>`;
+    offers.forEach(o => {
+      html += `<div class="activity-card" style="padding:12px 14px">
+        <div class="ac-title" style="font-size:14px">${esc(o.title)}</div>
+        ${o.description ? `<div class="ac-desc">${esc(o.description)}</div>` : ''}
+      </div>`;
+    });
+  }
+
+  if (wants.length) {
+    html += `<div class="section-title">🔍 求めていること</div>`;
+    wants.forEach(w => {
+      html += `<div class="activity-card" style="padding:12px 14px">
+        <div class="ac-title" style="font-size:14px">${esc(w.title)}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('app').innerHTML = html;
+}
+
+async function requestConnect(toUser) {
+  const res = await API('/api/people', { method:'POST', body: JSON.stringify({ action:'request', to_user: toUser }) });
+  if (res.ok) { showAlert('つながり申請を送りました！'); renderDetail(toUser); }
+  else showAlert('エラーが発生しました', 'error');
+}
+
+function setCat(cat) { catFilter = cat; render(); }
+function openDetail(uid) { viewUid = uid; render(); }
+function back() { viewUid = null; render(); }
+
+async function init() {
+  if (!localStorage.getItem('nc_token')) return location.href='/';
+  render();
+}
+init();
+</script>
+</body>
+</html>

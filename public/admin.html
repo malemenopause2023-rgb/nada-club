@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理者画面 | nadaclub</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body { padding-bottom: 20px; }
+.admin-login { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="admin-login">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:40px;margin-bottom:8px">🔐</div>
+      <div style="font-size:20px;font-weight:700;color:var(--green-dark)">管理者ログイン</div>
+    </div>
+    <div class="form-card">
+      <div class="form-group"><label>管理者シークレット</label>
+        <input id="admin-secret" type="password" placeholder="ADMIN_SECRETを入力"></div>
+      <button class="btn btn-primary btn-full" onclick="adminLogin()">ログイン</button>
+      <div id="login-error" style="color:#C03020;font-size:13px;text-align:center;margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<div id="admin-screen" style="display:none">
+  <header class="app-header">
+    <h1>🔐 管理者画面</h1>
+    <button onclick="adminLogout()" style="font-size:13px;color:var(--text3);background:none;border:none;cursor:pointer">ログアウト</button>
+  </header>
+  <div id="admin-app"><div class="loading">読み込み中…</div></div>
+</div>
+
+<script>
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+let adminToken = '';
+
+function adminLogin() {
+  const secret = document.getElementById('admin-secret').value.trim();
+  if (!secret) return;
+  adminToken = secret;
+  loadUsers();
+}
+
+function adminLogout() {
+  adminToken = '';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-screen').style.display = 'none';
+}
+
+async function loadUsers() {
+  const res = await fetch('/api/admin', { headers: { Authorization: 'Bearer ' + adminToken } });
+  if (res.status === 401) {
+    document.getElementById('login-error').textContent = 'シークレットが間違っています';
+    return;
+  }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-screen').style.display = 'block';
+  const users = await res.json();
+  renderUsers(users);
+}
+
+function renderUsers(users) {
+  const pending  = users.filter(u => u.status === 'pending');
+  const active   = users.filter(u => u.status === 'active');
+  const suspended = users.filter(u => u.status === 'suspended');
+
+  let html = `
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-num">${pending.length}</div><div class="stat-label">承認待ち</div></div>
+    <div class="stat-item"><div class="stat-num">${active.length}</div><div class="stat-label">アクティブ</div></div>
+    <div class="stat-item"><div class="stat-num">${suspended.length}</div><div class="stat-label">停止中</div></div>
+  </div>`;
+
+  if (pending.length) {
+    html += `<div class="section-title">⏳ 承認待ち（${pending.length}件）</div>`;
+    pending.forEach(u => { html += userRow(u); });
+  }
+
+  html += `<div class="section-title">✅ アクティブ（${active.length}人）</div>`;
+  active.forEach(u => { html += userRow(u); });
+
+  if (suspended.length) {
+    html += `<div class="section-title">🚫 停止中</div>`;
+    suspended.forEach(u => { html += userRow(u); });
+  }
+
+  document.getElementById('admin-app').innerHTML = html;
+}
+
+function userRow(u) {
+  const statusLabel = { pending:'承認待ち', active:'アクティブ', suspended:'停止中' }[u.status] || u.status;
+  const statusColor = { pending:'#A08000', active:'#2D6A1F', suspended:'#C03020' }[u.status] || '#666';
+  return `<div class="activity-card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="font-size:24px">${esc(u.avatar||'😊')}</span>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600">${esc(u.name||'(名前未設定)')}</div>
+        <div style="font-size:11px;color:var(--text3)">${esc(u.line_name||'')} ・ ${esc(u.area||'')} ・ ${u.type==='group'?'団体':'個人'}</div>
+      </div>
+      <span style="font-size:11px;font-weight:600;color:${statusColor}">${statusLabel}</span>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">登録: ${u.created_at?.slice(0,10)||''}</div>
+    <div style="display:flex;gap:8px">
+      ${u.status === 'pending'  ? `<button class="btn btn-primary btn-sm" onclick="doAction(${u.id},'approve')">承認する</button>` : ''}
+      ${u.status === 'active'   ? `<button class="btn btn-danger btn-sm"  onclick="doAction(${u.id},'suspend')">停止する</button>` : ''}
+      ${u.status === 'suspended'? `<button class="btn btn-outline btn-sm" onclick="doAction(${u.id},'approve')">再承認する</button>` : ''}
+    </div>
+  </div>`;
+}
+
+async function doAction(user_id, action) {
+  const label = action === 'approve' ? '承認' : '停止';
+  if (!confirm(`このユーザーを${label}しますか？`)) return;
+  await fetch('/api/admin', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id, action }),
+  });
+  loadUsers();
+}
+</script>
+</body>
+</html>

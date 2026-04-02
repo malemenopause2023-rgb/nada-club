@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マイページ | nadaclub</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="app-header"><h1>👤 マイページ</h1></header>
+
+<div id="alert-area"></div>
+<div id="app"><div class="loading">読み込み中…</div></div>
+
+<nav class="bottom-nav">
+  <a href="/home.html"     class="nav-item"><span class="nav-icon">🏠</span>ホーム</a>
+  <a href="/activity.html" class="nav-item"><span class="nav-icon">📋</span>活動</a>
+  <a href="/people.html"   class="nav-item"><span class="nav-icon">👥</span>ひとを探す</a>
+  <a href="/resources.html"class="nav-item"><span class="nav-icon">📦</span>リソース</a>
+  <a href="/profile.html"  class="nav-item active"><span class="nav-icon">👤</span>マイページ</a>
+</nav>
+
+<script>
+const API = (path, opt={}) => fetch(path, { headers: { Authorization: 'Bearer ' + localStorage.getItem('nc_token'), 'Content-Type':'application/json' }, ...opt });
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const CATS = {
+  env:   { label:'環境・自然', icon:'🌿', cls:'cat-env' },
+  food:  { label:'食・農業',   icon:'🌾', cls:'cat-food' },
+  child: { label:'子ども・教育',icon:'🧒', cls:'cat-child' },
+  elder: { label:'高齢者支援', icon:'🤝', cls:'cat-elder' },
+  art:   { label:'文化・芸術', icon:'🎨', cls:'cat-art' },
+  local: { label:'地域活性',   icon:'🏘️', cls:'cat-local' },
+  other: { label:'その他',     icon:'💬', cls:'cat-other' },
+};
+const AVATARS = ['😊','🌿','🌾','🧒','🤝','🎨','🏘️','💬','🌸','⚡','🎵','🍀','🔥','💡','🐾'];
+
+function showAlert(msg, type='success') {
+  document.getElementById('alert-area').innerHTML = `<div class="alert alert-${type}">${esc(msg)}</div>`;
+  setTimeout(() => document.getElementById('alert-area').innerHTML = '', 3000);
+}
+
+async function render() {
+  const res = await API('/api/profile');
+  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/'; }
+  const { user, offers, wants, connections, pending, activities } = await res.json();
+
+  let html = `
+  <!-- プロフィールカード -->
+  <div class="person-card" style="margin-top:14px">
+    <div class="person-head">
+      <div class="person-avatar" style="width:56px;height:56px;font-size:32px">${esc(user.avatar||'😊')}</div>
+      <div>
+        <div class="person-name" style="font-size:18px">${esc(user.name||'名前未設定')}</div>
+        <div class="person-area">📍 ${esc(user.area||'エリア未設定')}</div>
+      </div>
+      <span class="person-type">${user.type==='group'?'団体':'個人'}</span>
+    </div>
+    ${user.bio ? `<div class="person-bio">${esc(user.bio)}</div>` : ''}
+    <button class="btn btn-outline btn-full btn-sm" onclick="toggleEdit()">プロフィールを編集</button>
+  </div>
+
+  <!-- 編集フォーム（折りたたみ） -->
+  <div id="edit-form" style="display:none">
+  <div class="form-card">
+    <div class="form-title">✏️ プロフィール編集</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">アバター</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${AVATARS.map(a=>`<span onclick="selectAvatar('${a}')" id="av-${a}" style="font-size:26px;cursor:pointer;padding:4px;border-radius:8px;border:2px solid ${user.avatar===a?'var(--green)':'transparent'}">${a}</span>`).join('')}
+      </div>
+      <input type="hidden" id="edit-avatar" value="${esc(user.avatar||'😊')}">
+    </div>
+    <div class="form-group"><label>名前 <span class="required">*</span></label>
+      <input id="edit-name" type="text" value="${esc(user.name||'')}"></div>
+    <div class="form-group"><label>エリア</label>
+      <input id="edit-area" type="text" placeholder="例：六甲・灘・大石" value="${esc(user.area||'')}"></div>
+    <div class="form-group"><label>種別</label>
+      <select id="edit-type">
+        <option value="individual"${user.type!=='group'?' selected':''}>個人</option>
+        <option value="group"${user.type==='group'?' selected':''}>団体・グループ</option>
+      </select></div>
+    <div class="form-group"><label>自己紹介</label>
+      <textarea id="edit-bio" placeholder="どんな活動をしていますか？">${esc(user.bio||'')}</textarea></div>
+    <button class="btn btn-primary btn-full" onclick="saveProfile()">保存する</button>
+    <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="toggleEdit()">キャンセル</button>
+  </div>
+  </div>`;
+
+  // つながり申請通知
+  if (pending.length > 0) {
+    html += `<div class="notice-banner">
+      <div class="notice-title">🔔 つながり申請が ${pending.length} 件届いています</div>`;
+    pending.forEach(p => {
+      html += `<div class="notice-item">
+        <span style="font-size:22px">${esc(p.from?.avatar||'😊')}</span>
+        <span style="font-size:14px;font-weight:600;flex:1">${esc(p.from?.name||'')}</span>
+        <button class="btn btn-sm btn-primary" onclick="acceptConn(${p.id})">承認</button>
+        <button class="btn btn-sm btn-outline" onclick="declineConn(${p.id})">見送る</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // OFFER登録
+  html += `<div class="section-title">✨ できること・提供できること</div>
+  <div class="form-card">
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label>タイトル <span class="required">*</span></label>
+        <input id="offer-title" type="text" placeholder="例：草刈りのお手伝い"></div>
+      <div class="form-group" style="flex:1"><label>カテゴリ</label>
+        <select id="offer-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-group"><label>詳細（任意）</label>
+      <input id="offer-desc" type="text" placeholder="どんなことができるか具体的に"></div>
+    <button class="btn btn-primary btn-sm" onclick="addOffer()">追加する</button>
+  </div>`;
+  offers.forEach(o => {
+    const cat = CATS[o.category] || CATS.other;
+    html += `<div class="activity-card" style="padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="cat-badge ${cat.cls}" style="font-size:11px">${cat.icon}</span>
+        <span style="font-size:14px;font-weight:600;flex:1">${esc(o.title)}</span>
+        <button class="delete-btn" onclick="deleteOffer(${o.id})">削除</button>
+      </div>
+      ${o.description ? `<div style="font-size:12px;color:var(--text2);margin-top:4px">${esc(o.description)}</div>` : ''}
+    </div>`;
+  });
+
+  // WANT登録
+  html += `<div class="section-title">🔍 求めていること</div>
+  <div class="form-card">
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label>タイトル <span class="required">*</span></label>
+        <input id="want-title" type="text" placeholder="例：農作業を一緒にやる仲間"></div>
+      <div class="form-group" style="flex:1"><label>カテゴリ</label>
+        <select id="want-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="addWant()">追加する</button>
+  </div>`;
+  wants.forEach(w => {
+    const cat = CATS[w.category] || CATS.other;
+    html += `<div class="activity-card" style="padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="cat-badge ${cat.cls}" style="font-size:11px">${cat.icon}</span>
+        <span style="font-size:14px;font-weight:600;flex:1">${esc(w.title)}</span>
+        <button class="delete-btn" onclick="deleteWant(${w.id})">削除</button>
+      </div>
+    </div>`;
+  });
+
+  // つながり一覧
+  if (connections.length) {
+    html += `<div class="section-title">🔗 つながり（${connections.length}人）</div>`;
+    connections.forEach(c => {
+      html += `<div class="activity-card" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">${esc(c.from?.avatar||c.to?.avatar||'😊')}</span>
+          <span style="font-size:14px;font-weight:600">${esc(c.from?.name||c.to?.name||'')}</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  // ログアウト
+  html += `<div style="text-align:center;padding:20px 14px">
+    <button onclick="logout()" class="btn btn-outline btn-sm" style="color:var(--text3);border-color:var(--border)">ログアウト</button>
+  </div>`;
+
+  document.getElementById('app').innerHTML = html;
+}
+
+function toggleEdit() {
+  const el = document.getElementById('edit-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function selectAvatar(a) {
+  document.getElementById('edit-avatar').value = a;
+  document.querySelectorAll('[id^="av-"]').forEach(el => el.style.borderColor = 'transparent');
+  document.getElementById('av-' + a).style.borderColor = 'var(--green)';
+}
+
+async function saveProfile() {
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) return showAlert('名前を入力してください', 'error');
+  const body = {
+    name,
+    area:   document.getElementById('edit-area').value.trim(),
+    type:   document.getElementById('edit-type').value,
+    avatar: document.getElementById('edit-avatar').value,
+    bio:    document.getElementById('edit-bio').value.trim(),
+  };
+  const res = await API('/api/profile', { method:'POST', body: JSON.stringify({ ...body, action: 'update_profile' }) });
+  if (res.ok) { showAlert('プロフィールを保存しました！'); render(); }
+  else showAlert('エラーが発生しました', 'error');
+}
+
+async function addOffer() {
+  const title = document.getElementById('offer-title').value.trim();
+  if (!title) return showAlert('タイトルを入力してください', 'error');
+  const body = { title, category: document.getElementById('offer-cat').value, description: document.getElementById('offer-desc').value.trim() };
+  await API('/api/profile', { method:'POST', body: JSON.stringify(body) });
+  showAlert('OFFERを追加しました！'); render();
+}
+
+async function deleteOffer(id) {
+  await API('/api/profile', { method:'POST', body: JSON.stringify({ action: 'delete_offer', id }) });
+  render();
+}
+
+async function addWant() {
+  const title = document.getElementById('want-title').value.trim();
+  if (!title) return showAlert('タイトルを入力してください', 'error');
+  const body = { title, category: document.getElementById('want-cat').value };
+  await API('/api/profile', { method:'POST', body: JSON.stringify(body) });
+  showAlert('WANTを追加しました！'); render();
+}
+
+async function deleteWant(id) {
+  await API('/api/profile', { method:'POST', body: JSON.stringify({ action: 'delete_offer', id }) });
+  render();
+}
+
+async function acceptConn(id) {
+  await API('/api/people', { method:'POST', body: JSON.stringify({ action:'accept', connection_id: id }) });
+  showAlert('つながり申請を承認しました！'); render();
+}
+
+async function declineConn(id) {
+  await API('/api/people', { method:'POST', body: JSON.stringify({ action:'decline', connection_id: id }) });
+  render();
+}
+
+function logout() {
+  localStorage.removeItem('nc_token');
+  location.href = '/index.html';
+}
+
+async function init() {
+  if (!localStorage.getItem('nc_token')) return location.href='/';
+  render();
+}
+init();
+</script>
+</body>
+</html>

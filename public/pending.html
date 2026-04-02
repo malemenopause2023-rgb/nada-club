@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>承認待ち | nadaclub</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; background: var(--green-light); }
+.card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); padding: 32px 24px; max-width: 360px; width: 100%; text-align: center; }
+.icon { font-size: 52px; margin-bottom: 16px; }
+h2 { font-size: 18px; font-weight: 700; color: var(--green-dark); margin-bottom: 12px; }
+p { font-size: 14px; color: var(--text2); line-height: 1.8; }
+.logout { margin-top: 24px; font-size: 13px; color: var(--text3); cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">⏳</div>
+  <h2>承認をお待ちください</h2>
+  <p>ご登録ありがとうございます。<br>管理者が確認後、ご利用いただけるようになります。<br><br>通常1〜2営業日以内にご連絡します。</p>
+  <p class="logout" onclick="logout()">ログアウト</p>
+</div>
+<script>
+const p = new URLSearchParams(location.search);
+const token = p.get('token');
+if (token) localStorage.setItem('nc_token', token);
+
+function logout() {
+  localStorage.removeItem('nc_token');
+  location.href = '/index.html';
+}
+</script>
+</body>
+</html>

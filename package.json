@@ -1,0 +1,12 @@
+{
+  "name": "nada-club",
+  "version": "1.0.0",
+  "description": "灘区つながりマップ",
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

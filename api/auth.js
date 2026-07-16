@@ -46,12 +46,13 @@ module.exports = async (req, res) => {
       });
       const { userId: line_uid, displayName: line_name } = await profileRes.json();
 
-      // 3. Supabaseにupsert
+      // 3. Supabaseにupsert（新規登録は即active）
       const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
       let { data: user } = await db.from('users').select('*').eq('line_uid', line_uid).single();
+
       if (!user) {
         const { data: newUser, error: insertError } = await db.from('users')
-          .insert({ line_uid, line_name, name: line_name, status: 'pending' })
+          .insert({ line_uid, line_name, name: line_name, status: 'active' })
           .select().single();
         if (insertError) {
           console.error('insert error:', insertError);
@@ -62,17 +63,18 @@ module.exports = async (req, res) => {
         await db.from('users').update({ line_name }).eq('id', user.id);
       }
 
-      // 4. JWT発行
+      // 4. 停止中ユーザーは弾く
+      if (user.status === 'suspended') {
+        return res.redirect('/index.html?error=suspended');
+      }
+
+      // 5. JWT発行
       const token = jwt.sign(
         { user_id: user.id, line_uid, name: user.name, status: user.status },
         process.env.JWT_SECRET,
         { expiresIn: '30d' }
       );
 
-      // 5. リダイレクト（.htmlを直接指定）
-      if (user.status === 'pending') {
-        return res.redirect('/pending.html?token=' + token);
-      }
       return res.redirect('/home.html?token=' + token);
 
     } catch (e) {

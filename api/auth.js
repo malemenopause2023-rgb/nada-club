@@ -2,7 +2,8 @@ const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 
 module.exports = async (req, res) => {
-  const { action } = req.query;
+  const url = new URL(req.url, 'https://' + req.headers.host);
+  const action = url.searchParams.get('action');
 
   // ── LINEログイン開始 ──────────────────────────────
   if (action === 'login') {
@@ -18,9 +19,10 @@ module.exports = async (req, res) => {
 
   // ── LINEコールバック ──────────────────────────────
   if (action === 'callback') {
-    const { code } = req.query;
-    if (!code) return res.redirect('/?error=no_code');
+    const code = url.searchParams.get('code');
+    if (!code) return res.redirect('/index.html?error=no_code');
     try {
+      // 1. アクセストークン取得
       const tokenRes = await fetch('https://api.line.me/oauth2/v2.1/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -33,36 +35,49 @@ module.exports = async (req, res) => {
         }),
       });
       const tokenData = await tokenRes.json();
-      if (!tokenData.access_token) return res.redirect('/?error=token_failed');
+      if (!tokenData.access_token) {
+        console.error('token error:', tokenData);
+        return res.redirect('/index.html?error=token_failed');
+      }
 
+      // 2. LINEプロフィール取得
       const profileRes = await fetch('https://api.line.me/v2/profile', {
         headers: { Authorization: 'Bearer ' + tokenData.access_token },
       });
       const { userId: line_uid, displayName: line_name } = await profileRes.json();
 
+      // 3. Supabaseにupsert
       const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
       let { data: user } = await db.from('users').select('*').eq('line_uid', line_uid).single();
       if (!user) {
-        const { data: newUser } = await db.from('users')
+        const { data: newUser, error: insertError } = await db.from('users')
           .insert({ line_uid, line_name, name: line_name, status: 'pending' })
           .select().single();
+        if (insertError) {
+          console.error('insert error:', insertError);
+          return res.redirect('/index.html?error=db_error');
+        }
         user = newUser;
       } else {
         await db.from('users').update({ line_name }).eq('id', user.id);
       }
 
+      // 4. JWT発行
       const token = jwt.sign(
         { user_id: user.id, line_uid, name: user.name, status: user.status },
         process.env.JWT_SECRET,
         { expiresIn: '30d' }
       );
 
-      return res.redirect(user.status === 'pending'
-        ? '/pending?token=' + token
-        : '/home?token=' + token);
+      // 5. リダイレクト（.htmlを直接指定）
+      if (user.status === 'pending') {
+        return res.redirect('/pending.html?token=' + token);
+      }
+      return res.redirect('/home.html?token=' + token);
+
     } catch (e) {
-      console.error(e);
-      return res.redirect('/?error=server_error');
+      console.error('callback error:', e);
+      return res.redirect('/index.html?error=server_error');
     }
   }
 

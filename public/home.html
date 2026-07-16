@@ -17,34 +17,43 @@
 </div>
 
 <nav class="bottom-nav">
-  <a href="/home.html"     class="nav-item active"><span class="nav-icon">🏠</span>ホーム</a>
-  <a href="/activity.html" class="nav-item"><span class="nav-icon">📋</span>活動</a>
-  <a href="/people.html"   class="nav-item"><span class="nav-icon">👥</span>ひとを探す</a>
-  <a href="/resources.html"class="nav-item"><span class="nav-icon">📦</span>リソース</a>
-  <a href="/profile.html"  class="nav-item"><span class="nav-icon">👤</span>マイページ</a>
+  <a href="/home.html"      class="nav-item active"><span class="nav-icon">🏠</span>ホーム</a>
+  <a href="/activity.html"  class="nav-item"><span class="nav-icon">📋</span>活動</a>
+  <a href="/people.html"    class="nav-item"><span class="nav-icon">👥</span>ひとを探す</a>
+  <a href="/resources.html" class="nav-item"><span class="nav-icon">📦</span>リソース</a>
+  <a href="/profile.html"   class="nav-item"><span class="nav-icon">👤</span>マイページ</a>
 </nav>
 
 <script>
-const API = (path, opt={}) => {
+// ── URLからトークンを受け取って保存 ──
+const _p = new URLSearchParams(location.search);
+const _t = _p.get('token');
+if (_t) {
+  localStorage.setItem('nc_token', _t);
+  history.replaceState({}, '', '/home.html');
+}
+
+// ── API共通関数 ──
+const API = (path, opt = {}) => {
   const t = localStorage.getItem('nc_token');
-  return fetch(path, { headers: { Authorization: 'Bearer ' + t }, ...opt });
+  return fetch(path, { headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, ...opt });
 };
 
+const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const DAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const CATS = {
-  env:   { label:'環境・自然', icon:'🌿', cls:'cat-env' },
-  food:  { label:'食・農業',   icon:'🌾', cls:'cat-food' },
-  child: { label:'子ども・教育',icon:'🧒', cls:'cat-child' },
-  elder: { label:'高齢者支援', icon:'🤝', cls:'cat-elder' },
-  art:   { label:'文化・芸術', icon:'🎨', cls:'cat-art' },
-  local: { label:'地域活性',   icon:'🏘️', cls:'cat-local' },
-  other: { label:'その他',     icon:'💬', cls:'cat-other' },
+  env:   { label: '環境・自然',   icon: '🌿', cls: 'cat-env' },
+  food:  { label: '食・農業',     icon: '🌾', cls: 'cat-food' },
+  child: { label: '子ども・教育', icon: '🧒', cls: 'cat-child' },
+  elder: { label: '高齢者支援',   icon: '🤝', cls: 'cat-elder' },
+  art:   { label: '文化・芸術',   icon: '🎨', cls: 'cat-art' },
+  local: { label: '地域活性',     icon: '🏘️', cls: 'cat-local' },
+  other: { label: 'その他',       icon: '💬', cls: 'cat-other' },
 };
-
-const DAYS = ['日','月','火','水','木','金','土'];
 
 function diffDays(dateStr) {
-  const d = new Date(dateStr); d.setHours(0,0,0,0);
-  const t = new Date(); t.setHours(0,0,0,0);
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
   return Math.round((d - t) / 86400000);
 }
 
@@ -52,17 +61,17 @@ function renderEventCard(ev) {
   const d = new Date(ev.event_date);
   const diff = diffDays(ev.event_date);
   const cat = CATS[ev.category] || CATS.other;
+  const time = ev.event_time ? ev.event_time.slice(0, 5) : '';
   let badge = '';
-  if (diff < 0) badge = '<span class="ev-badge badge-done">終了</span>';
+  if (diff < 0)      badge = '<span class="ev-badge badge-done">終了</span>';
   else if (diff <= 3) badge = `<span class="ev-badge badge-soon">あと${diff}日</span>`;
-  else badge = '<span class="ev-badge badge-new">新着</span>';
+  else               badge = '<span class="ev-badge badge-new">新着</span>';
 
-  const time = ev.event_time ? ev.event_time.slice(0,5) : '';
   return `
   <div class="event-card">
     <div class="ev-head">
       <div class="ev-date-badge">
-        <div class="ev-month">${d.getMonth()+1}月</div>
+        <div class="ev-month">${d.getMonth() + 1}月</div>
         <div class="ev-day">${d.getDate()}</div>
         <div class="ev-dow">${DAYS[d.getDay()]}曜</div>
       </div>
@@ -76,15 +85,11 @@ function renderEventCard(ev) {
     </div>
     ${ev.description ? `<div class="ev-body">${esc(ev.description)}</div>` : ''}
     <div class="ev-footer">
-      <div class="host-avatar">${esc(ev.users?.avatar||'😊')}</div>
-      <span class="host-name">${esc(ev.users?.name||'')}</span>
-      <a href="/activity.html" class="btn btn-sm btn-outline">詳細を見る</a>
+      <div class="host-avatar">${esc(ev.users?.avatar || '😊')}</div>
+      <span class="host-name">${esc(ev.users?.name || '')}</span>
+      <a href="/activity.html#events" class="btn btn-sm btn-outline">詳細を見る</a>
     </div>
   </div>`;
-}
-
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 async function init() {
@@ -97,39 +102,42 @@ async function init() {
     API('/api/profile'),
   ]);
 
-  if (feedRes.status === 401) { localStorage.removeItem('nc_token'); return location.href = '/index.html'; }
+  if (feedRes.status === 401) {
+    localStorage.removeItem('nc_token');
+    return location.href = '/index.html';
+  }
 
-  const feed   = await feedRes.json();
-  const events = await evRes.json();
-  const prof   = await profRes.json();
-
+  const feed    = await feedRes.json();
+  const events  = await evRes.json();
+  const prof    = await profRes.json();
   const pending = prof.pending || [];
+
+  // つながり通知バッジ
   if (pending.length > 0) {
     const b = document.getElementById('pending-badge');
-    b.textContent = pending.length; b.style.display = '';
+    b.textContent = pending.length;
+    b.style.display = '';
   }
 
   let html = `
   <div class="hero-strip">
-    <h2>おかえり、${esc(prof.user?.name||'')} さん 👋</h2>
+    <h2>おかえり、${esc(prof.user?.name || '')} さん 👋</h2>
     <p>灘区の今日の動きを確認しましょう</p>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-num">${(events || []).length}</div><div class="stat-label">📅 予定イベント</div></div>
+    <div class="stat-item"><div class="stat-num">${(feed || []).length}</div><div class="stat-label">📝 活動記録</div></div>
+    <div class="stat-item"><div class="stat-num">${(prof.connections || []).length}</div><div class="stat-label">🔗 つながり</div></div>
   </div>`;
 
-  // 統計
-  html += `<div class="stats-bar">
-    <div class="stat-item"><div class="stat-num" id="s-users">-</div><div class="stat-label">👤 メンバー</div></div>
-    <div class="stat-item"><div class="stat-num" id="s-acts">-</div><div class="stat-label">📝 活動記録</div></div>
-    <div class="stat-item"><div class="stat-num" id="s-ev">-</div><div class="stat-label">📅 予定イベント</div></div>
-  </div>`;
-
-  // つながり通知
+  // つながり申請通知
   if (pending.length > 0) {
     html += `<div class="notice-banner" style="margin-top:14px">
       <div class="notice-title">🔔 つながり申請が ${pending.length} 件届いています</div>`;
     pending.forEach(p => {
       html += `<div class="notice-item">
-        <span style="font-size:20px">${esc(p.from?.avatar||'😊')}</span>
-        <span style="font-size:14px;font-weight:600">${esc(p.from?.name||'')}</span>
+        <span style="font-size:20px">${esc(p.from?.avatar || '😊')}</span>
+        <span style="font-size:14px;font-weight:600">${esc(p.from?.name || '')}</span>
         <a href="/profile.html" class="btn btn-sm btn-primary" style="margin-left:auto">確認する</a>
       </div>`;
     });
@@ -137,7 +145,7 @@ async function init() {
   }
 
   // 近日イベント
-  const upcoming = (events||[]).slice(0,3);
+  const upcoming = (events || []).slice(0, 3);
   html += `<div class="section-title">📅 近日のイベント予定</div>`;
   if (upcoming.length) {
     upcoming.forEach(ev => { html += renderEventCard(ev); });
@@ -148,35 +156,36 @@ async function init() {
     html += `<div class="empty-state"><div class="empty-icon">📅</div><p>予定されているイベントはありません</p></div>`;
   }
 
-  // 最新の活動
+  // 最新の活動記録
   html += `<div class="section-title">📢 最新の活動記録</div>`;
-  (feed||[]).slice(0,5).forEach(a => {
-    const cat = CATS[a.category] || CATS.other;
-    html += `<div class="activity-card">
-      <div class="ac-head">
-        <div class="ac-avatar">${esc(a.users?.avatar||'😊')}</div>
-        <div>
-          <div class="ac-org">${esc(a.users?.name||'')}</div>
-          <div class="ac-area">📍 ${esc(a.users?.area||'')}</div>
+  const recentFeed = (feed || []).slice(0, 5);
+  if (recentFeed.length) {
+    recentFeed.forEach(a => {
+      const cat = CATS[a.category] || CATS.other;
+      html += `<div class="activity-card">
+        <div class="ac-head">
+          <div class="ac-avatar">${esc(a.users?.avatar || '😊')}</div>
+          <div>
+            <div class="ac-org">${esc(a.users?.name || '')}</div>
+            <div class="ac-area">📍 ${esc(a.users?.area || '')}</div>
+          </div>
+          <span class="cat-badge ${cat.cls}">${cat.icon} ${cat.label}</span>
         </div>
-        <span class="cat-badge ${cat.cls}">${cat.icon} ${cat.label}</span>
-      </div>
-      <div class="ac-title">${esc(a.title)}</div>
-      ${a.description ? `<div class="ac-desc">${esc(a.description.slice(0,80))}${a.description.length>80?'…':''}</div>` : ''}
-      ${a.impact ? `<div class="impact-row">⭐ ${esc(a.impact)}</div>` : ''}
-    </div>`;
-  });
-  if ((feed||[]).length > 5) {
-    html += `<div style="text-align:center;padding:0 14px 16px">
-      <a href="/activity.html" class="btn btn-outline btn-sm">もっと見る →</a>
-    </div>`;
+        <div class="ac-title">${esc(a.title)}</div>
+        ${a.description ? `<div class="ac-desc">${esc(a.description.slice(0, 80))}${a.description.length > 80 ? '…' : ''}</div>` : ''}
+        ${a.impact ? `<div class="impact-row">⭐ ${esc(a.impact)}</div>` : ''}
+      </div>`;
+    });
+    if ((feed || []).length > 5) {
+      html += `<div style="text-align:center;padding:0 14px 16px">
+        <a href="/activity.html" class="btn btn-outline btn-sm">もっと見る →</a>
+      </div>`;
+    }
+  } else {
+    html += `<div class="empty-state"><div class="empty-icon">📝</div><p>まだ活動記録がありません。<br>最初の活動を記録しましょう！</p></div>`;
   }
 
   document.getElementById('app').innerHTML = html;
-
-  // 統計（簡易）
-  document.getElementById('s-ev').textContent = (events||[]).length;
-  document.getElementById('s-acts').textContent = (feed||[]).length;
 }
 
 init();

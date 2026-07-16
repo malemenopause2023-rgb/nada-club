@@ -6,12 +6,13 @@
 <title>承認待ち | nadaclub</title>
 <link rel="stylesheet" href="/style.css">
 <style>
-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; background: var(--green-light); }
-.card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); padding: 32px 24px; max-width: 360px; width: 100%; text-align: center; }
-.icon { font-size: 52px; margin-bottom: 16px; }
-h2 { font-size: 18px; font-weight: 700; color: var(--green-dark); margin-bottom: 12px; }
-p { font-size: 14px; color: var(--text2); line-height: 1.8; }
-.logout { margin-top: 24px; font-size: 13px; color: var(--text3); cursor: pointer; }
+body { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; background:var(--green-light); }
+.card { background:var(--surface); border-radius:16px; border:1px solid var(--border); padding:32px 24px; max-width:360px; width:100%; text-align:center; }
+.icon { font-size:52px; margin-bottom:16px; }
+h2 { font-size:18px; font-weight:700; color:var(--green-dark); margin-bottom:12px; }
+p { font-size:14px; color:var(--text2); line-height:1.8; }
+.logout { margin-top:24px; font-size:13px; color:var(--text3); cursor:pointer; background:none; border:none; }
+.checking { margin-top:16px; font-size:12px; color:var(--text3); }
 </style>
 </head>
 <body>
@@ -19,17 +20,55 @@ p { font-size: 14px; color: var(--text2); line-height: 1.8; }
   <div class="icon">⏳</div>
   <h2>承認をお待ちください</h2>
   <p>ご登録ありがとうございます。<br>管理者が確認後、ご利用いただけるようになります。<br><br>通常1〜2営業日以内にご連絡します。</p>
-  <p class="logout" onclick="logout()">ログアウト</p>
+  <p class="checking" id="check-msg">承認状況を確認中…</p>
+  <button class="logout" onclick="logout()">ログアウト</button>
 </div>
 <script>
+// URLからトークンを取得して保存
 const p = new URLSearchParams(location.search);
 const token = p.get('token');
-if (token) localStorage.setItem('nc_token', token);
+if (token) {
+  localStorage.setItem('nc_token', token);
+  // URLからトークンを消す（見た目のため）
+  history.replaceState({}, '', '/pending.html');
+}
+
+// 承認されたか定期的に確認（30秒ごと）
+async function checkApproval() {
+  const t = localStorage.getItem('nc_token');
+  if (!t) return;
+  try {
+    const res = await fetch('/api/profile', {
+      headers: { Authorization: 'Bearer ' + t }
+    });
+    if (res.status === 401) {
+      // トークン切れ → LINEで再ログイン
+      localStorage.removeItem('nc_token');
+      location.href = '/index.html';
+      return;
+    }
+    const data = await res.json();
+    if (data.user?.status === 'active') {
+      // 承認された！ホームへ
+      location.href = '/home.html';
+    } else {
+      document.getElementById('check-msg').textContent =
+        '承認待ち中… （このページは自動で更新されます）';
+    }
+  } catch (e) {
+    // ネットワークエラーは無視
+  }
+}
 
 function logout() {
   localStorage.removeItem('nc_token');
   location.href = '/index.html';
 }
+
+// ページ読み込み時に即チェック
+checkApproval();
+// 30秒ごとに自動チェック
+setInterval(checkApproval, 30000);
 </script>
 </body>
 </html>

@@ -3,52 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>灘クラブ | nadaclub</title>
-<link rel="stylesheet" href="/style.css">
+<title>nadaclub | 灘区つながりマップ</title>
 <style>
-body { background: var(--green-light); display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
-.login-wrap { width: 100%; max-width: 360px; }
-.logo-area { text-align: center; margin-bottom: 32px; }
-.logo-icon { font-size: 56px; margin-bottom: 12px; }
-.logo-title { font-size: 26px; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
-.logo-sub { font-size: 13px; color: var(--text2); }
-.login-card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); padding: 28px 24px; }
-.login-lead { font-size: 14px; color: var(--text2); text-align: center; margin-bottom: 24px; line-height: 1.7; }
-.divider { text-align: center; font-size: 12px; color: var(--text3); margin: 16px 0; }
-.error-msg { color: #C03020; font-size: 13px; text-align: center; margin-bottom: 16px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Hiragino Sans', 'Meiryo UI', sans-serif;
+  background: #F0F7EC;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.wrap { width: 100%; max-width: 400px; }
+.logo { text-align: center; margin-bottom: 32px; }
+.logo-icon { font-size: 64px; margin-bottom: 10px; }
+.logo-title { font-size: 30px; font-weight: 700; color: #1A4A10; }
+.logo-sub { font-size: 16px; color: #5A7A50; margin-top: 6px; }
+.card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px 24px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.08);
+}
+.lead {
+  font-size: 16px;
+  color: #5A7A50;
+  text-align: center;
+  line-height: 1.8;
+  margin-bottom: 28px;
+}
+.line-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 20px;
+  background: #06C755;
+  color: #fff;
+  border-radius: 16px;
+  border: none;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+.line-btn:active { opacity: .85; }
+.note {
+  font-size: 13px;
+  color: #8A9A80;
+  text-align: center;
+  margin-top: 16px;
+  line-height: 1.7;
+}
+.error-msg {
+  background: #FEE;
+  color: #C03020;
+  font-size: 14px;
+  text-align: center;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
 </style>
 </head>
 <body>
-<div class="login-wrap">
-  <div class="logo-area">
+<div class="wrap">
+  <div class="logo">
     <div class="logo-icon">🌿</div>
     <div class="logo-title">nadaclub</div>
     <div class="logo-sub">灘区つながりマップ</div>
   </div>
-  <div class="login-card">
-    <div class="login-lead">
-      灘区で活動する人・団体がつながるプラットフォームです。<br>LINEアカウントでかんたんにログインできます。
+  <div class="card">
+    <div class="lead">
+      灘区で活動する人・団体が<br>つながるプラットフォームです。
     </div>
     <div id="error-area"></div>
     <a href="/api/auth?action=login" class="line-btn">
-      <svg class="line-logo" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.24 2 11.44c0 4.38 3.87 8.04 9.09 8.73l.56.08c.27.04.27.04.35.27l.12.57c.1.47.39.47.58.1l.47-1.8c.06-.23.17-.28.37-.2 3.93.99 6.96-1.74 6.96-5.75C20 6.24 17.52 2 12 2z"/></svg>
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="white">
+        <path d="M12 2C6.48 2 2 6.24 2 11.44c0 4.38 3.87 8.04 9.09 8.73l.56.08c.27.04.27.04.35.27l.12.57c.1.47.39.47.58.1l.47-1.8c.06-.23.17-.28.37-.2 3.93.99 6.96-1.74 6.96-5.75C20 6.24 17.52 2 12 2z"/>
+      </svg>
       LINEでログイン
     </a>
-    <div class="divider">——— はじめての方も登録不要 ———</div>
-    <p style="font-size:12px;color:var(--text3);text-align:center;line-height:1.7">
-      LINEアカウントで自動登録されます。<br>最初は管理者の承認をお待ちください。
+    <p class="note">
+      LINEアカウントで自動登録されます。<br>入力不要・1タップで完了。
     </p>
   </div>
 </div>
 <script>
 const p = new URLSearchParams(location.search);
-if (p.get('error')) {
+const err = p.get('error');
+if (err) {
+  const msgs = {
+    suspended: 'このアカウントは利用停止中です。',
+    token_failed: 'ログインに失敗しました。もう一度お試しください。',
+    server_error: 'サーバーエラーが発生しました。もう一度お試しください。',
+  };
   document.getElementById('error-area').innerHTML =
-    '<p class="error-msg">ログインに失敗しました。もう一度お試しください。</p>';
+    `<div class="error-msg">${msgs[err] || 'ログインに失敗しました。'}</div>`;
 }
-// すでにトークンがあればホームへ
-const t = localStorage.getItem('nc_token');
-if (t) location.href = '/home.html';
+if (localStorage.getItem('nc_token')) location.href = '/home.html';
 </script>
 </body>
 </html>

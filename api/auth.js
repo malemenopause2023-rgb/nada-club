@@ -46,11 +46,13 @@ module.exports = async (req, res) => {
       });
       const { userId: line_uid, displayName: line_name } = await profileRes.json();
 
-      // 3. Supabaseにupsert（新規登録は即active）
+      // 3. Supabaseにupsert
       const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
       let { data: user } = await db.from('users').select('*').eq('line_uid', line_uid).single();
+      const is_new = !user;
 
       if (!user) {
+        // 新規登録：即active
         const { data: newUser, error: insertError } = await db.from('users')
           .insert({ line_uid, line_name, name: line_name, status: 'active' })
           .select().single();
@@ -60,10 +62,11 @@ module.exports = async (req, res) => {
         }
         user = newUser;
       } else {
+        // 既存ユーザー：LINE名を更新
         await db.from('users').update({ line_name }).eq('id', user.id);
       }
 
-      // 4. 停止中ユーザーは弾く
+      // 4. 停止中は弾く
       if (user.status === 'suspended') {
         return res.redirect('/index.html?error=suspended');
       }
@@ -75,6 +78,10 @@ module.exports = async (req, res) => {
         { expiresIn: '30d' }
       );
 
+      // 6. 初回はonboard、既存はhomeへ
+      if (is_new) {
+        return res.redirect('/onboard.html?token=' + token);
+      }
       return res.redirect('/home.html?token=' + token);
 
     } catch (e) {

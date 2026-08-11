@@ -6,7 +6,7 @@
     { "source": "/profile",   "destination": "/profile.html" },
     { "source": "/resources", "destination": "/resources.html" },
     { "source": "/admin",     "destination": "/admin.html" },
-    { "source": "/pending",   "destination": "/pending.html" }
-    { "source": "/onboard", "destination": "/onboard.html" }
+    { "source": "/pending",   "destination": "/pending.html" },
+    { "source": "/onboard",   "destination": "/onboard.html" }
   ]
 }

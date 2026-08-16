@@ -15,10 +15,7 @@
   background: var(--green-light); margin: 0 14px 12px; padding: 10px 14px;
   border-radius: var(--radius); text-align: center; font-size: 14px; color: var(--green-dark); font-weight: 600;
 }
-.section-head-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 14px 14px 8px;
-}
+.section-head-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 14px 8px; }
 .section-more { font-size: 13px; color: var(--green); font-weight: 600; text-decoration: none; }
 .coupon-card {
   background: linear-gradient(135deg, #FFF9E0 0%, #FFF3C0 100%);
@@ -26,15 +23,17 @@
   margin: 0 14px 12px; padding: 14px;
 }
 .coupon-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.coupon-discount {
-  background: #E07030; color: #fff; font-size: 13px; font-weight: 700;
-  padding: 4px 10px; border-radius: 8px;
-}
+.coupon-discount { background: #E07030; color: #fff; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; }
 .coupon-title { font-size: 15px; font-weight: 700; color: #806010; }
 .coupon-org { font-size: 12px; color: #A08030; margin-bottom: 6px; }
 .coupon-desc { font-size: 13px; color: #6A5010; line-height: 1.6; }
-.coupon-valid { font-size: 12px; color: #C07000; margin-top: 6px; font-weight: 600; }
 .empty-small { text-align: center; padding: 20px; color: var(--text3); font-size: 14px; margin: 0 14px 12px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
+.person-mini-row { display: flex; gap: 10px; overflow-x: auto; padding: 0 14px 14px; scrollbar-width: none; }
+.person-mini-row::-webkit-scrollbar { display: none; }
+.person-mini { flex-shrink: 0; width: 110px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 10px; text-align: center; cursor: pointer; }
+.person-mini-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--green-light); display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 6px; }
+.person-mini-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.person-mini-tag { font-size: 10px; color: var(--green-text); margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -43,9 +42,7 @@
   <span id="user-tag" class="header-user-tag" style="display:none"></span>
 </header>
 
-<div id="app">
-  <div class="loading">読み込み中…</div>
-</div>
+<div id="app"><div class="loading">読み込み中…</div></div>
 
 <nav class="bottom-nav">
   <a href="/home.html"      class="nav-item active"><span class="nav-icon">🏠</span>ホーム</a>
@@ -56,10 +53,7 @@
 <script>
 const _p = new URLSearchParams(location.search);
 const _t = _p.get('token');
-if (_t) {
-  localStorage.setItem('nc_token', _t);
-  history.replaceState({}, '', '/home.html');
-}
+if (_t) { localStorage.setItem('nc_token', _t); history.replaceState({}, '', '/home.html'); }
 
 const API = (path, opt = {}) => {
   const t = localStorage.getItem('nc_token');
@@ -67,20 +61,16 @@ const API = (path, opt = {}) => {
 };
 
 const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const DAYS = ['日', '月', '火', '水', '木', '金', '土'];
+const DAYS = ['日','月','火','水','木','金','土'];
 const CATS = {
-  env:   { label: '環境・自然',   icon: '🌿', cls: 'cat-env' },
-  food:  { label: '食・農業',     icon: '🌾', cls: 'cat-food' },
-  child: { label: '子ども・教育', icon: '🧒', cls: 'cat-child' },
-  elder: { label: '高齢者支援',   icon: '🤝', cls: 'cat-elder' },
-  art:   { label: '文化・芸術',   icon: '🎨', cls: 'cat-art' },
-  local: { label: '地域活性',     icon: '🏘️', cls: 'cat-local' },
-  other: { label: 'その他',       icon: '💬', cls: 'cat-other' },
+  env:{label:'環境・自然',icon:'🌿',cls:'cat-env'}, food:{label:'食・農業',icon:'🌾',cls:'cat-food'},
+  child:{label:'子ども・教育',icon:'🧒',cls:'cat-child'}, elder:{label:'高齢者支援',icon:'🤝',cls:'cat-elder'},
+  art:{label:'文化・芸術',icon:'🎨',cls:'cat-art'}, local:{label:'地域活性',icon:'🏘️',cls:'cat-local'}, other:{label:'その他',icon:'💬',cls:'cat-other'},
 };
 
 function diffDays(dateStr) {
-  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
-  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  const t = new Date(); t.setHours(0,0,0,0);
   return Math.round((d - t) / 86400000);
 }
 
@@ -94,78 +84,61 @@ function makeUserCode(id) {
 }
 
 function renderEventCard(ev) {
-  const d = new Date(ev.event_date);
-  const diff = diffDays(ev.event_date);
-  const time = ev.event_time ? ev.event_time.slice(0, 5) : '';
-  let badge = '';
-  if (diff < 0)      badge = '<span class="ev-badge badge-done">終了</span>';
-  else if (diff <= 3) badge = `<span class="ev-badge badge-soon">あと${diff}日</span>`;
-  else               badge = '<span class="ev-badge badge-new">新着</span>';
+  const cat = CATS[ev.category] || CATS.other;
+  const hasDate = !!ev.event_date;
+  let badge = '', metaLine = '';
+
+  if (hasDate) {
+    const d = new Date(ev.event_date);
+    const diff = diffDays(ev.event_date);
+    const time = ev.event_time ? ev.event_time.slice(0,5) : '';
+    metaLine = `<span class="meta-item">📅 ${d.getMonth()+1}月${d.getDate()}日（${DAYS[d.getDay()]}）${time?' '+time:''}</span>
+      ${ev.location ? `<span class="meta-item">📍 ${esc(ev.location)}</span>` : ''}`;
+    badge = diff <= 3 ? `<span class="ev-badge badge-soon">あと${diff}日</span>` : '<span class="ev-badge badge-new">新着</span>';
+  } else {
+    badge = '<span class="ev-badge" style="background:#FFF3E0;color:#C07000">相談・募集</span>';
+  }
 
   return `
   <div class="event-card">
     <div class="ev-head">
-      <div class="ev-date-badge">
-        <div class="ev-month">${d.getMonth() + 1}月</div>
-        <div class="ev-day">${d.getDate()}</div>
-        <div class="ev-dow">${DAYS[d.getDay()]}曜</div>
+      <div class="ev-title-wrap">
+        <span class="cat-badge ${cat.cls}" style="font-size:11px;margin-bottom:6px;display:inline-block">${cat.icon} ${cat.label}</span>
+        <div class="ev-title">${esc(ev.title)}</div>
       </div>
-      <div class="ev-title-wrap"><div class="ev-title">${esc(ev.title)}</div></div>
       ${badge}
     </div>
-    <div class="ev-meta">
-      ${time ? `<span class="meta-item">⏰ ${time}</span>` : ''}
-      ${ev.location ? `<span class="meta-item">📍 ${esc(ev.location)}</span>` : ''}
-      ${ev.capacity ? `<span class="meta-item">👥 定員${ev.capacity}名</span>` : ''}
-    </div>
-    ${ev.description ? `<div class="ev-body">${esc(ev.description)}</div>` : ''}
+    <div class="ev-meta">${metaLine}</div>
+    ${ev.description ? `<div class="ev-body">${esc(ev.description.slice(0,60))}${ev.description.length>60?'…':''}</div>` : ''}
     <div class="ev-footer">
       <div class="host-avatar">${esc(ev.users?.avatar || '😊')}</div>
       <span class="host-name">${esc(ev.users?.name || '')}</span>
-      <a href="/activity.html#events" class="btn btn-sm btn-outline">詳細を見る</a>
+      <a href="/activity.html" class="btn btn-sm btn-outline">詳細を見る</a>
     </div>
   </div>`;
 }
 
-function renderCouponCard(c) {
-  const validText = c.valid_until ? `期限：${c.valid_until.replace(/-/g,'/')}まで` : '';
-  return `
-  <div class="coupon-card">
-    <div class="coupon-head">
-      ${c.discount ? `<span class="coupon-discount">${esc(c.discount)}</span>` : ''}
-      <span class="coupon-title">${esc(c.title)}</span>
-    </div>
-    <div class="coupon-org">🏪 ${esc(c.org_name || '')}</div>
-    ${c.description ? `<div class="coupon-desc">${esc(c.description)}</div>` : ''}
-    ${validText ? `<div class="coupon-valid">⏰ ${validText}</div>` : ''}
-  </div>`;
-}
-
-// 企業スポンサー機能実装までのダミー表示
 const DUMMY_COUPONS = [
-  { title: '近日、地元店舗のクーポンが届く予定です', org_name: 'nadaclub運営', discount: '', description: '企業連携機能を準備中です。お楽しみに！', valid_until: null },
+  { title: '近日、地元店舗のクーポンが届く予定です', org_name: 'nadaclub運営', discount: '', description: '企業連携機能を準備中です。お楽しみに！' },
 ];
 
 async function init() {
   const t = localStorage.getItem('nc_token');
   if (!t) return location.href = '/index.html';
 
-  const [feedRes, evRes, profRes, statsRes] = await Promise.all([
-    API('/api/activities?category=all'),
+  const [evRes, profRes, statsRes, peopleRes] = await Promise.all([
     API('/api/events?filter=upcoming'),
     API('/api/profile'),
     API('/api/stats'),
+    API('/api/people'),
   ]);
 
-  if (feedRes.status === 401) {
-    localStorage.removeItem('nc_token');
-    return location.href = '/index.html';
-  }
+  if (evRes.status === 401) { localStorage.removeItem('nc_token'); return location.href = '/index.html'; }
 
-  const feed   = await feedRes.json();
   const events = await evRes.json();
   const prof   = await profRes.json();
   const stats  = statsRes.ok ? await statsRes.json() : { user_count: 0 };
+  const people = peopleRes.ok ? await peopleRes.json() : [];
 
   if (prof.user) {
     const tag = document.getElementById('user-tag');
@@ -174,49 +147,58 @@ async function init() {
   }
 
   let html = '';
-
   html += `<div class="member-count-bar">👥 現在 ${stats.user_count} 人が参加中</div>`;
 
-  // 近日イベント
+  // 日時ありのイベントだけ抽出
+  const dated = (events || []).filter(e => e.event_date).slice(0, 3);
   html += `<div class="section-head-row">
     <span class="section-title" style="padding:0">📅 近日のイベント</span>
-    <a href="/activity.html#events" class="section-more">もっと見る →</a>
+    <a href="/activity.html" class="section-more">もっと見る →</a>
   </div>`;
-  const upcoming = (events || []).slice(0, 3);
-  if (upcoming.length) {
-    upcoming.forEach(ev => { html += renderEventCard(ev); });
+  if (dated.length) {
+    dated.forEach(ev => { html += renderEventCard(ev); });
   } else {
     html += `<div class="empty-small">まだイベントがありません</div>`;
   }
 
-  // クーポン・お得情報（ダミー）
+  // ひと
   html += `<div class="section-head-row">
-    <span class="section-title" style="padding:0">🎁 クーポン・お得情報</span>
+    <span class="section-title" style="padding:0">👥 ひと</span>
+    <a href="/people.html" class="section-more">もっと見る →</a>
   </div>`;
-  DUMMY_COUPONS.forEach(c => { html += renderCouponCard(c); });
+  if (people.length) {
+    html += `<div class="person-mini-row">`;
+    people.slice(0, 8).forEach(p => {
+      const tag = (p.offers && p.offers[0]) ? '✨ ' + p.offers[0].title : ((p.wants && p.wants[0]) ? '🔍 ' + p.wants[0].title : '');
+      html += `<a href="/people.html" class="person-mini">
+        <div class="person-mini-avatar">${esc(p.avatar||'😊')}</div>
+        <div class="person-mini-name">${esc(p.name)}</div>
+        ${tag ? `<div class="person-mini-tag">${esc(tag.slice(0,10))}</div>` : ''}
+      </a>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="empty-small">まだ登録者がいません</div>`;
+  }
 
-  // 最新情報
+  // クーポン
+  html += `<div class="section-head-row"><span class="section-title" style="padding:0">🎁 クーポン・お得情報</span></div>`;
+  DUMMY_COUPONS.forEach(c => {
+    html += `<div class="coupon-card">
+      <div class="coupon-head"><span class="coupon-title">${esc(c.title)}</span></div>
+      <div class="coupon-org">🏪 ${esc(c.org_name)}</div>
+      <div class="coupon-desc">${esc(c.description)}</div>
+    </div>`;
+  });
+
+  // 最新情報（相談・募集も含む全部）
   html += `<div class="section-head-row">
     <span class="section-title" style="padding:0">📢 最新情報</span>
     <a href="/activity.html" class="section-more">もっと見る →</a>
   </div>`;
-  const recentFeed = (feed || []).slice(0, 5);
-  if (recentFeed.length) {
-    recentFeed.forEach(a => {
-      const cat = CATS[a.category] || CATS.other;
-      html += `<div class="activity-card">
-        <div class="ac-head">
-          <div class="ac-avatar">${esc(a.users?.avatar || '😊')}</div>
-          <div>
-            <div class="ac-org">${esc(a.users?.name || '')}</div>
-            <div class="ac-area">📍 ${esc(a.users?.area || '')}</div>
-          </div>
-          <span class="cat-badge ${cat.cls}">${cat.icon} ${cat.label}</span>
-        </div>
-        <div class="ac-title">${esc(a.title)}</div>
-        ${a.description ? `<div class="ac-desc">${esc(a.description.slice(0, 80))}${a.description.length > 80 ? '…' : ''}</div>` : ''}
-      </div>`;
-    });
+  const recent = (events || []).slice(0, 5);
+  if (recent.length) {
+    recent.forEach(ev => { html += renderEventCard(ev); });
   } else {
     html += `<div class="empty-small">まだ情報がありません。活動タブから最初のイベント・相談を投稿してみましょう！</div>`;
   }

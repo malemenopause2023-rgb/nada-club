@@ -33,10 +33,6 @@ async function render() {
   if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/index.html'; }
   const { user, offers, wants, connections, pending, activities } = await res.json();
 
-  const couponsRes = await API('/api/coupons');
-  const allCoupons = couponsRes.ok ? await couponsRes.json() : [];
-  const myCoupons = allCoupons.filter(c => c.user_id === user.id);
-
   let html = `
   <!-- プロフィールカード -->
   <div class="person-card" style="margin-top:14px">
@@ -93,32 +89,6 @@ async function render() {
     });
     html += `</div>`;
   }
-
-  // クーポン投稿
-  html += `<div class="section-title">🎁 クーポン・お得情報を出す</div>
-  <div class="form-card">
-    <div class="form-group"><label>タイトル <span class="required">*</span></label>
-      <input id="coupon-title" type="text" placeholder="例：ドリンク1杯無料"></div>
-    <div class="form-row">
-      <div class="form-group"><label>割引内容</label>
-        <input id="coupon-discount" type="text" placeholder="例：20%OFF"></div>
-      <div class="form-group"><label>有効期限（任意）</label>
-        <input id="coupon-valid" type="date"></div>
-    </div>
-    <div class="form-group"><label>詳細（任意）</label>
-      <input id="coupon-desc" type="text" placeholder="利用条件など"></div>
-    <button class="btn btn-primary btn-sm" onclick="addCoupon()">投稿する</button>
-  </div>`;
-  myCoupons.forEach(c => {
-    html += `<div class="activity-card" style="padding:10px 14px">
-      <div style="display:flex;align-items:center;gap:8px">
-        ${c.discount ? `<span style="background:#E07030;color:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px">${esc(c.discount)}</span>` : ''}
-        <span style="font-size:14px;font-weight:600;flex:1">${esc(c.title)}</span>
-        <button class="delete-btn" onclick="deleteCoupon(${c.id})">削除</button>
-      </div>
-      ${c.valid_until ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">期限：${c.valid_until.replace(/-/g,'/')}</div>` : ''}
-    </div>`;
-  });
 
   // OFFER登録
   html += `<div class="section-title">✨ できること・提供できること</div>
@@ -225,25 +195,6 @@ async function saveProfile() {
   const res = await API('/api/profile', { method:'POST', body: JSON.stringify(body) });
   if (res.ok) { showAlert('プロフィールを保存しました！'); render(); }
   else showAlert('エラーが発生しました', 'error');
-}
-
-async function addCoupon() {
-  const title = document.getElementById('coupon-title').value.trim();
-  if (!title) return showAlert('タイトルを入力してください', 'error');
-  const body = {
-    title,
-    discount: document.getElementById('coupon-discount').value.trim(),
-    valid_until: document.getElementById('coupon-valid').value || null,
-    description: document.getElementById('coupon-desc').value.trim(),
-  };
-  const res = await API('/api/coupons', { method:'POST', body: JSON.stringify(body) });
-  if (res.ok) { showAlert('クーポンを投稿しました！'); render(); }
-  else showAlert('エラーが発生しました', 'error');
-}
-
-async function deleteCoupon(id) {
-  await API('/api/coupons', { method:'POST', body: JSON.stringify({ delete_id: id }) });
-  render();
 }
 
 async function addOffer() {

@@ -15,6 +15,11 @@
   background: var(--green-light); margin: 0 14px 12px; padding: 10px 14px;
   border-radius: var(--radius); text-align: center; font-size: 14px; color: var(--green-dark); font-weight: 600;
 }
+.section-head-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 14px 8px;
+}
+.section-more { font-size: 13px; color: var(--green); font-weight: 600; text-decoration: none; }
 .coupon-card {
   background: linear-gradient(135deg, #FFF9E0 0%, #FFF3C0 100%);
   border: 1.5px dashed #E0B840; border-radius: var(--radius);
@@ -29,6 +34,7 @@
 .coupon-org { font-size: 12px; color: #A08030; margin-bottom: 6px; }
 .coupon-desc { font-size: 13px; color: #6A5010; line-height: 1.6; }
 .coupon-valid { font-size: 12px; color: #C07000; margin-top: 6px; font-weight: 600; }
+.empty-small { text-align: center; padding: 20px; color: var(--text3); font-size: 14px; margin: 0 14px 12px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -48,7 +54,6 @@
 </nav>
 
 <script>
-// ── URLからトークンを受け取って保存 ──
 const _p = new URLSearchParams(location.search);
 const _t = _p.get('token');
 if (_t) {
@@ -56,7 +61,6 @@ if (_t) {
   history.replaceState({}, '', '/home.html');
 }
 
-// ── API共通関数 ──
 const API = (path, opt = {}) => {
   const t = localStorage.getItem('nc_token');
   return fetch(path, { headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, ...opt });
@@ -81,7 +85,6 @@ function diffDays(dateStr) {
 }
 
 function makeUserCode(id) {
-  // ID=1 → AA0001 のような簡易コード生成
   const n = parseInt(id) || 0;
   const letterIdx = Math.floor(n / 9999);
   const first = String.fromCharCode(65 + Math.floor(letterIdx / 26));
@@ -132,22 +135,26 @@ function renderCouponCard(c) {
       ${c.discount ? `<span class="coupon-discount">${esc(c.discount)}</span>` : ''}
       <span class="coupon-title">${esc(c.title)}</span>
     </div>
-    <div class="coupon-org">🏪 ${esc(c.users?.name || '')}</div>
+    <div class="coupon-org">🏪 ${esc(c.org_name || '')}</div>
     ${c.description ? `<div class="coupon-desc">${esc(c.description)}</div>` : ''}
     ${validText ? `<div class="coupon-valid">⏰ ${validText}</div>` : ''}
   </div>`;
 }
 
+// 企業スポンサー機能実装までのダミー表示
+const DUMMY_COUPONS = [
+  { title: '近日、地元店舗のクーポンが届く予定です', org_name: 'nadaclub運営', discount: '', description: '企業連携機能を準備中です。お楽しみに！', valid_until: null },
+];
+
 async function init() {
   const t = localStorage.getItem('nc_token');
   if (!t) return location.href = '/index.html';
 
-  const [feedRes, evRes, profRes, statsRes, couponsRes] = await Promise.all([
+  const [feedRes, evRes, profRes, statsRes] = await Promise.all([
     API('/api/activities?category=all'),
     API('/api/events?filter=upcoming'),
     API('/api/profile'),
     API('/api/stats'),
-    API('/api/coupons'),
   ]);
 
   if (feedRes.status === 401) {
@@ -155,13 +162,11 @@ async function init() {
     return location.href = '/index.html';
   }
 
-  const feed    = await feedRes.json();
-  const events  = await evRes.json();
-  const prof    = await profRes.json();
-  const stats   = statsRes.ok ? await statsRes.json() : { user_count: 0 };
-  const coupons = couponsRes.ok ? await couponsRes.json() : [];
+  const feed   = await feedRes.json();
+  const events = await evRes.json();
+  const prof   = await profRes.json();
+  const stats  = statsRes.ok ? await statsRes.json() : { user_count: 0 };
 
-  // ユーザータグ表示
   if (prof.user) {
     const tag = document.getElementById('user-tag');
     tag.innerHTML = `${esc(prof.user.name || '')}<span class="uid">${makeUserCode(prof.user.id)}</span>`;
@@ -170,29 +175,31 @@ async function init() {
 
   let html = '';
 
-  // 登録者人数バー
   html += `<div class="member-count-bar">👥 現在 ${stats.user_count} 人が参加中</div>`;
 
   // 近日イベント
-  const upcoming = (events || []).slice(0, 3);
-  html += `<div class="section-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:14px">
-    <span>📅 近日のイベント</span>
-    <a href="/activity.html#events" style="font-size:13px;color:var(--green);font-weight:600">もっと見る →</a>
+  html += `<div class="section-head-row">
+    <span class="section-title" style="padding:0">📅 近日のイベント</span>
+    <a href="/activity.html#events" class="section-more">もっと見る →</a>
   </div>`;
+  const upcoming = (events || []).slice(0, 3);
   if (upcoming.length) {
     upcoming.forEach(ev => { html += renderEventCard(ev); });
   } else {
-    html += `<div class="empty-state"><div class="empty-icon">📅</div><p>予定されているイベントはありません</p></div>`;
+    html += `<div class="empty-small">まだイベントがありません</div>`;
   }
 
-  // クーポン・お得情報
-  if (coupons.length) {
-    html += `<div class="section-title">🎁 クーポン・お得情報</div>`;
-    coupons.slice(0, 3).forEach(c => { html += renderCouponCard(c); });
-  }
+  // クーポン・お得情報（ダミー）
+  html += `<div class="section-head-row">
+    <span class="section-title" style="padding:0">🎁 クーポン・お得情報</span>
+  </div>`;
+  DUMMY_COUPONS.forEach(c => { html += renderCouponCard(c); });
 
-  // 最新の活動記録
-  html += `<div class="section-title">📢 最新情報</div>`;
+  // 最新情報
+  html += `<div class="section-head-row">
+    <span class="section-title" style="padding:0">📢 最新情報</span>
+    <a href="/activity.html" class="section-more">もっと見る →</a>
+  </div>`;
   const recentFeed = (feed || []).slice(0, 5);
   if (recentFeed.length) {
     recentFeed.forEach(a => {
@@ -211,7 +218,7 @@ async function init() {
       </div>`;
     });
   } else {
-    html += `<div class="empty-state"><div class="empty-icon">📝</div><p>まだ情報がありません</p></div>`;
+    html += `<div class="empty-small">まだ情報がありません。活動タブから最初のイベント・相談を投稿してみましょう！</div>`;
   }
 
   document.getElementById('app').innerHTML = html;

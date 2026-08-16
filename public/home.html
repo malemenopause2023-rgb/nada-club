@@ -23,17 +23,10 @@
   margin: 0 14px 12px; padding: 14px;
 }
 .coupon-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.coupon-discount { background: #E07030; color: #fff; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; }
 .coupon-title { font-size: 15px; font-weight: 700; color: #806010; }
 .coupon-org { font-size: 12px; color: #A08030; margin-bottom: 6px; }
 .coupon-desc { font-size: 13px; color: #6A5010; line-height: 1.6; }
 .empty-small { text-align: center; padding: 20px; color: var(--text3); font-size: 14px; margin: 0 14px 12px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
-.person-mini-row { display: flex; gap: 10px; overflow-x: auto; padding: 0 14px 14px; scrollbar-width: none; }
-.person-mini-row::-webkit-scrollbar { display: none; }
-.person-mini { flex-shrink: 0; width: 110px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 10px; text-align: center; cursor: pointer; }
-.person-mini-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--green-light); display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 6px; }
-.person-mini-name { font-size: 12px; font-weight: 600; color: var(--text); }
-.person-mini-tag { font-size: 10px; color: var(--green-text); margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -119,18 +112,17 @@ function renderEventCard(ev) {
 }
 
 const DUMMY_COUPONS = [
-  { title: '近日、地元店舗のクーポンが届く予定です', org_name: 'nadaclub運営', discount: '', description: '企業連携機能を準備中です。お楽しみに！' },
+  { title: '近日、地元店舗のクーポンが届く予定です', org_name: 'nadaclub運営', description: '企業連携機能を準備中です。お楽しみに！' },
 ];
 
 async function init() {
   const t = localStorage.getItem('nc_token');
   if (!t) return location.href = '/index.html';
 
-  const [evRes, profRes, statsRes, peopleRes] = await Promise.all([
+  const [evRes, profRes, statsRes] = await Promise.all([
     API('/api/events?filter=upcoming'),
     API('/api/profile'),
     API('/api/stats'),
-    API('/api/people'),
   ]);
 
   if (evRes.status === 401) { localStorage.removeItem('nc_token'); return location.href = '/index.html'; }
@@ -138,7 +130,6 @@ async function init() {
   const events = await evRes.json();
   const prof   = await profRes.json();
   const stats  = statsRes.ok ? await statsRes.json() : { user_count: 0 };
-  const people = peopleRes.ok ? await peopleRes.json() : [];
 
   if (prof.user) {
     const tag = document.getElementById('user-tag');
@@ -149,7 +140,6 @@ async function init() {
   let html = '';
   html += `<div class="member-count-bar">👥 現在 ${stats.user_count} 人が参加中</div>`;
 
-  // 日時ありのイベントだけ抽出
   const dated = (events || []).filter(e => e.event_date).slice(0, 3);
   html += `<div class="section-head-row">
     <span class="section-title" style="padding:0">📅 近日のイベント</span>
@@ -161,27 +151,6 @@ async function init() {
     html += `<div class="empty-small">まだイベントがありません</div>`;
   }
 
-  // ひと
-  html += `<div class="section-head-row">
-    <span class="section-title" style="padding:0">👥 ひと</span>
-    <a href="/people.html" class="section-more">もっと見る →</a>
-  </div>`;
-  if (people.length) {
-    html += `<div class="person-mini-row">`;
-    people.slice(0, 8).forEach(p => {
-      const tag = (p.offers && p.offers[0]) ? '✨ ' + p.offers[0].title : ((p.wants && p.wants[0]) ? '🔍 ' + p.wants[0].title : '');
-      html += `<a href="/people.html" class="person-mini">
-        <div class="person-mini-avatar">${esc(p.avatar||'😊')}</div>
-        <div class="person-mini-name">${esc(p.name)}</div>
-        ${tag ? `<div class="person-mini-tag">${esc(tag.slice(0,10))}</div>` : ''}
-      </a>`;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div class="empty-small">まだ登録者がいません</div>`;
-  }
-
-  // クーポン
   html += `<div class="section-head-row"><span class="section-title" style="padding:0">🎁 クーポン・お得情報</span></div>`;
   DUMMY_COUPONS.forEach(c => {
     html += `<div class="coupon-card">
@@ -191,7 +160,6 @@ async function init() {
     </div>`;
   });
 
-  // 最新情報（相談・募集も含む全部）
   html += `<div class="section-head-row">
     <span class="section-title" style="padding:0">📢 最新情報</span>
     <a href="/activity.html" class="section-more">もっと見る →</a>
@@ -200,7 +168,7 @@ async function init() {
   if (recent.length) {
     recent.forEach(ev => { html += renderEventCard(ev); });
   } else {
-    html += `<div class="empty-small">まだ情報がありません。活動タブから最初のイベント・相談を投稿してみましょう！</div>`;
+    html += `<div class="empty-small">まだ最新情報がありません</div>`;
   }
 
   document.getElementById('app').innerHTML = html;

@@ -22,6 +22,11 @@
 const API = (path, opt={}) => fetch(path, { headers: { Authorization: 'Bearer ' + localStorage.getItem('nc_token'), 'Content-Type':'application/json' }, ...opt });
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const AVATARS = ['😊','🌿','🌾','🧒','🤝','🎨','🏘️','💬','🌸','⚡','🎵','🍀','🔥','💡','🐾'];
+const AREAS = ['六甲・篠原','王子・灘','大石・都賀','新在家・西灘','摩耶','その他・灘区全般'];
+const CATS = {
+  env:'🌿 環境・自然', food:'🌾 食・農業', child:'🧒 子ども・教育',
+  elder:'🤝 高齢者支援', art:'🎨 文化・芸術', local:'🏘️ 地域活性', other:'💬 その他'
+};
 
 function showAlert(msg, type='success') {
   document.getElementById('alert-area').innerHTML = `<div class="alert alert-${type}">${esc(msg)}</div>`;
@@ -31,10 +36,9 @@ function showAlert(msg, type='success') {
 async function render() {
   const res = await API('/api/profile');
   if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/index.html'; }
-  const { user, offers, wants, connections, pending, activities } = await res.json();
+  const { user, offers, wants, connections, pending } = await res.json();
 
   let html = `
-  <!-- プロフィールカード -->
   <div class="person-card" style="margin-top:14px">
     <div class="person-head">
       <div class="person-avatar" style="width:56px;height:56px;font-size:32px">${esc(user.avatar||'😊')}</div>
@@ -48,7 +52,6 @@ async function render() {
     <button class="btn btn-outline btn-full btn-sm" onclick="toggleEdit()">プロフィールを編集</button>
   </div>
 
-  <!-- 編集フォーム（折りたたみ） -->
   <div id="edit-form" style="display:none">
   <div class="form-card">
     <div class="form-title">✏️ プロフィール編集</div>
@@ -62,7 +65,10 @@ async function render() {
     <div class="form-group"><label>名前 <span class="required">*</span></label>
       <input id="edit-name" type="text" value="${esc(user.name||'')}"></div>
     <div class="form-group"><label>エリア</label>
-      <input id="edit-area" type="text" placeholder="例：六甲・灘・大石" value="${esc(user.area||'')}"></div>
+      <select id="edit-area">
+        <option value="">選択してください</option>
+        ${AREAS.map(a=>`<option value="${a}"${user.area===a?' selected':''}>${a}</option>`).join('')}
+      </select></div>
     <div class="form-group"><label>種別</label>
       <select id="edit-type">
         <option value="individual"${user.type!=='group'?' selected':''}>個人</option>
@@ -75,7 +81,6 @@ async function render() {
   </div>
   </div>`;
 
-  // つながり申請通知
   if (pending.length > 0) {
     html += `<div class="notice-banner">
       <div class="notice-title">🔔 つながり申請が ${pending.length} 件届いています</div>`;
@@ -90,22 +95,13 @@ async function render() {
     html += `</div>`;
   }
 
-  // OFFER登録
   html += `<div class="section-title">✨ できること・提供できること</div>
   <div class="form-card">
     <div class="form-row">
       <div class="form-group" style="flex:2"><label>タイトル <span class="required">*</span></label>
         <input id="offer-title" type="text" placeholder="例：草刈りのお手伝い"></div>
       <div class="form-group" style="flex:1"><label>カテゴリ</label>
-        <select id="offer-cat">
-          <option value="env">🌿 環境・自然</option>
-          <option value="food">🌾 食・農業</option>
-          <option value="child">🧒 子ども・教育</option>
-          <option value="elder">🤝 高齢者支援</option>
-          <option value="art">🎨 文化・芸術</option>
-          <option value="local">🏘️ 地域活性</option>
-          <option value="other">💬 その他</option>
-        </select></div>
+        <select id="offer-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
     </div>
     <div class="form-group"><label>詳細（任意）</label>
       <input id="offer-desc" type="text" placeholder="どんなことができるか具体的に"></div>
@@ -121,22 +117,13 @@ async function render() {
     </div>`;
   });
 
-  // WANT登録
   html += `<div class="section-title">🔍 求めていること</div>
   <div class="form-card">
     <div class="form-row">
       <div class="form-group" style="flex:2"><label>タイトル <span class="required">*</span></label>
         <input id="want-title" type="text" placeholder="例：農作業を一緒にやる仲間"></div>
       <div class="form-group" style="flex:1"><label>カテゴリ</label>
-        <select id="want-cat">
-          <option value="env">🌿 環境・自然</option>
-          <option value="food">🌾 食・農業</option>
-          <option value="child">🧒 子ども・教育</option>
-          <option value="elder">🤝 高齢者支援</option>
-          <option value="art">🎨 文化・芸術</option>
-          <option value="local">🏘️ 地域活性</option>
-          <option value="other">💬 その他</option>
-        </select></div>
+        <select id="want-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
     </div>
     <button class="btn btn-primary btn-sm" onclick="addWant()">追加する</button>
   </div>`;
@@ -149,7 +136,6 @@ async function render() {
     </div>`;
   });
 
-  // つながり一覧
   if (connections.length) {
     html += `<div class="section-title">🔗 つながり（${connections.length}人）</div>`;
     connections.forEach(c => {
@@ -162,7 +148,6 @@ async function render() {
     });
   }
 
-  // ログアウト
   html += `<div style="text-align:center;padding:20px 14px">
     <button onclick="logout()" class="btn btn-outline btn-sm" style="color:var(--text3);border-color:var(--border)">ログアウト</button>
   </div>`;
@@ -187,7 +172,7 @@ async function saveProfile() {
   const body = {
     action: 'update_profile',
     name,
-    area:   document.getElementById('edit-area').value.trim(),
+    area:   document.getElementById('edit-area').value,
     type:   document.getElementById('edit-type').value,
     avatar: document.getElementById('edit-avatar').value,
     bio:    document.getElementById('edit-bio').value.trim(),

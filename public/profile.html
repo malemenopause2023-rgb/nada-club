@@ -15,23 +15,12 @@
 <nav class="bottom-nav">
   <a href="/home.html"     class="nav-item"><span class="nav-icon">🏠</span>ホーム</a>
   <a href="/activity.html" class="nav-item"><span class="nav-icon">📋</span>活動</a>
-  <a href="/people.html"   class="nav-item"><span class="nav-icon">👥</span>ひとを探す</a>
-  <a href="/resources.html"class="nav-item"><span class="nav-icon">📦</span>リソース</a>
   <a href="/profile.html"  class="nav-item active"><span class="nav-icon">👤</span>マイページ</a>
 </nav>
 
 <script>
 const API = (path, opt={}) => fetch(path, { headers: { Authorization: 'Bearer ' + localStorage.getItem('nc_token'), 'Content-Type':'application/json' }, ...opt });
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const CATS = {
-  env:   { label:'環境・自然', icon:'🌿', cls:'cat-env' },
-  food:  { label:'食・農業',   icon:'🌾', cls:'cat-food' },
-  child: { label:'子ども・教育',icon:'🧒', cls:'cat-child' },
-  elder: { label:'高齢者支援', icon:'🤝', cls:'cat-elder' },
-  art:   { label:'文化・芸術', icon:'🎨', cls:'cat-art' },
-  local: { label:'地域活性',   icon:'🏘️', cls:'cat-local' },
-  other: { label:'その他',     icon:'💬', cls:'cat-other' },
-};
 const AVATARS = ['😊','🌿','🌾','🧒','🤝','🎨','🏘️','💬','🌸','⚡','🎵','🍀','🔥','💡','🐾'];
 
 function showAlert(msg, type='success') {
@@ -41,8 +30,12 @@ function showAlert(msg, type='success') {
 
 async function render() {
   const res = await API('/api/profile');
-  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/'; }
+  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/index.html'; }
   const { user, offers, wants, connections, pending, activities } = await res.json();
+
+  const couponsRes = await API('/api/coupons');
+  const allCoupons = couponsRes.ok ? await couponsRes.json() : [];
+  const myCoupons = allCoupons.filter(c => c.user_id === user.id);
 
   let html = `
   <!-- プロフィールカード -->
@@ -101,6 +94,32 @@ async function render() {
     html += `</div>`;
   }
 
+  // クーポン投稿
+  html += `<div class="section-title">🎁 クーポン・お得情報を出す</div>
+  <div class="form-card">
+    <div class="form-group"><label>タイトル <span class="required">*</span></label>
+      <input id="coupon-title" type="text" placeholder="例：ドリンク1杯無料"></div>
+    <div class="form-row">
+      <div class="form-group"><label>割引内容</label>
+        <input id="coupon-discount" type="text" placeholder="例：20%OFF"></div>
+      <div class="form-group"><label>有効期限（任意）</label>
+        <input id="coupon-valid" type="date"></div>
+    </div>
+    <div class="form-group"><label>詳細（任意）</label>
+      <input id="coupon-desc" type="text" placeholder="利用条件など"></div>
+    <button class="btn btn-primary btn-sm" onclick="addCoupon()">投稿する</button>
+  </div>`;
+  myCoupons.forEach(c => {
+    html += `<div class="activity-card" style="padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${c.discount ? `<span style="background:#E07030;color:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px">${esc(c.discount)}</span>` : ''}
+        <span style="font-size:14px;font-weight:600;flex:1">${esc(c.title)}</span>
+        <button class="delete-btn" onclick="deleteCoupon(${c.id})">削除</button>
+      </div>
+      ${c.valid_until ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">期限：${c.valid_until.replace(/-/g,'/')}</div>` : ''}
+    </div>`;
+  });
+
   // OFFER登録
   html += `<div class="section-title">✨ できること・提供できること</div>
   <div class="form-card">
@@ -108,17 +127,23 @@ async function render() {
       <div class="form-group" style="flex:2"><label>タイトル <span class="required">*</span></label>
         <input id="offer-title" type="text" placeholder="例：草刈りのお手伝い"></div>
       <div class="form-group" style="flex:1"><label>カテゴリ</label>
-        <select id="offer-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+        <select id="offer-cat">
+          <option value="env">🌿 環境・自然</option>
+          <option value="food">🌾 食・農業</option>
+          <option value="child">🧒 子ども・教育</option>
+          <option value="elder">🤝 高齢者支援</option>
+          <option value="art">🎨 文化・芸術</option>
+          <option value="local">🏘️ 地域活性</option>
+          <option value="other">💬 その他</option>
+        </select></div>
     </div>
     <div class="form-group"><label>詳細（任意）</label>
       <input id="offer-desc" type="text" placeholder="どんなことができるか具体的に"></div>
     <button class="btn btn-primary btn-sm" onclick="addOffer()">追加する</button>
   </div>`;
   offers.forEach(o => {
-    const cat = CATS[o.category] || CATS.other;
     html += `<div class="activity-card" style="padding:10px 14px">
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="cat-badge ${cat.cls}" style="font-size:11px">${cat.icon}</span>
         <span style="font-size:14px;font-weight:600;flex:1">${esc(o.title)}</span>
         <button class="delete-btn" onclick="deleteOffer(${o.id})">削除</button>
       </div>
@@ -133,15 +158,21 @@ async function render() {
       <div class="form-group" style="flex:2"><label>タイトル <span class="required">*</span></label>
         <input id="want-title" type="text" placeholder="例：農作業を一緒にやる仲間"></div>
       <div class="form-group" style="flex:1"><label>カテゴリ</label>
-        <select id="want-cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+        <select id="want-cat">
+          <option value="env">🌿 環境・自然</option>
+          <option value="food">🌾 食・農業</option>
+          <option value="child">🧒 子ども・教育</option>
+          <option value="elder">🤝 高齢者支援</option>
+          <option value="art">🎨 文化・芸術</option>
+          <option value="local">🏘️ 地域活性</option>
+          <option value="other">💬 その他</option>
+        </select></div>
     </div>
     <button class="btn btn-primary btn-sm" onclick="addWant()">追加する</button>
   </div>`;
   wants.forEach(w => {
-    const cat = CATS[w.category] || CATS.other;
     html += `<div class="activity-card" style="padding:10px 14px">
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="cat-badge ${cat.cls}" style="font-size:11px">${cat.icon}</span>
         <span style="font-size:14px;font-weight:600;flex:1">${esc(w.title)}</span>
         <button class="delete-btn" onclick="deleteWant(${w.id})">削除</button>
       </div>
@@ -184,21 +215,41 @@ async function saveProfile() {
   const name = document.getElementById('edit-name').value.trim();
   if (!name) return showAlert('名前を入力してください', 'error');
   const body = {
+    action: 'update_profile',
     name,
     area:   document.getElementById('edit-area').value.trim(),
     type:   document.getElementById('edit-type').value,
     avatar: document.getElementById('edit-avatar').value,
     bio:    document.getElementById('edit-bio').value.trim(),
   };
-  const res = await API('/api/profile', { method:'POST', body: JSON.stringify({ ...body, action: 'update_profile' }) });
+  const res = await API('/api/profile', { method:'POST', body: JSON.stringify(body) });
   if (res.ok) { showAlert('プロフィールを保存しました！'); render(); }
   else showAlert('エラーが発生しました', 'error');
+}
+
+async function addCoupon() {
+  const title = document.getElementById('coupon-title').value.trim();
+  if (!title) return showAlert('タイトルを入力してください', 'error');
+  const body = {
+    title,
+    discount: document.getElementById('coupon-discount').value.trim(),
+    valid_until: document.getElementById('coupon-valid').value || null,
+    description: document.getElementById('coupon-desc').value.trim(),
+  };
+  const res = await API('/api/coupons', { method:'POST', body: JSON.stringify(body) });
+  if (res.ok) { showAlert('クーポンを投稿しました！'); render(); }
+  else showAlert('エラーが発生しました', 'error');
+}
+
+async function deleteCoupon(id) {
+  await API('/api/coupons', { method:'POST', body: JSON.stringify({ delete_id: id }) });
+  render();
 }
 
 async function addOffer() {
   const title = document.getElementById('offer-title').value.trim();
   if (!title) return showAlert('タイトルを入力してください', 'error');
-  const body = { title, category: document.getElementById('offer-cat').value, description: document.getElementById('offer-desc').value.trim() };
+  const body = { action: 'add_offer', title, category: document.getElementById('offer-cat').value, description: document.getElementById('offer-desc').value.trim() };
   await API('/api/profile', { method:'POST', body: JSON.stringify(body) });
   showAlert('OFFERを追加しました！'); render();
 }
@@ -211,13 +262,13 @@ async function deleteOffer(id) {
 async function addWant() {
   const title = document.getElementById('want-title').value.trim();
   if (!title) return showAlert('タイトルを入力してください', 'error');
-  const body = { title, category: document.getElementById('want-cat').value };
+  const body = { action: 'add_want', title, category: document.getElementById('want-cat').value };
   await API('/api/profile', { method:'POST', body: JSON.stringify(body) });
   showAlert('WANTを追加しました！'); render();
 }
 
 async function deleteWant(id) {
-  await API('/api/profile', { method:'POST', body: JSON.stringify({ action: 'delete_offer', id }) });
+  await API('/api/profile', { method:'POST', body: JSON.stringify({ action: 'delete_want', id }) });
   render();
 }
 
@@ -237,7 +288,7 @@ function logout() {
 }
 
 async function init() {
-  if (!localStorage.getItem('nc_token')) return location.href='/';
+  if (!localStorage.getItem('nc_token')) return location.href='/index.html';
   render();
 }
 init();

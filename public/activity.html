@@ -11,6 +11,7 @@
 
 <div class="tab-bar" id="tab-bar">
   <button class="tab-item active" onclick="switchTab('all')">📅 イベント一覧</button>
+  <button class="tab-item" onclick="switchTab('people')">👥 ひと</button>
   <button class="tab-item" onclick="switchTab('mine')">📝 自分の活動</button>
 </div>
 
@@ -40,6 +41,8 @@ const CATS = {
 let activeTab = 'all';
 let myUserId = null;
 let showForm = false;
+let peopleCatFilter = '';
+let viewUid = null;
 
 function showAlert(msg, type='success') {
   document.getElementById('alert-area').innerHTML = `<div class="alert alert-${type}">${esc(msg)}</div>`;
@@ -55,9 +58,13 @@ function diffDays(dateStr) {
 function switchTab(tab) {
   activeTab = tab;
   showForm = false;
-  document.querySelectorAll('.tab-item').forEach((el,i) => el.classList.toggle('active', (i===0&&tab==='all')||(i===1&&tab==='mine')));
+  viewUid = null;
+  document.querySelectorAll('.tab-item').forEach((el,i) => el.classList.toggle('active',
+    (i===0&&tab==='all')||(i===1&&tab==='people')||(i===2&&tab==='mine')));
   render();
 }
+
+/* ===== イベント一覧 ===== */
 
 function formHtml() {
   return `
@@ -109,7 +116,7 @@ function toggleForm() {
   render();
 }
 
-function renderEventDetailCard(ev, mode) {
+function renderEventDetailCard(ev) {
   const cat = CATS[ev.category] || CATS.other;
   const isMe = ev.user_id === myUserId;
   const hasDate = !!ev.event_date;
@@ -174,11 +181,13 @@ async function renderAll() {
   if (!data.length) {
     html += '<div class="empty-state"><div class="empty-icon">📋</div><p>まだ何もありません。<br>最初のイベント・相談を投稿してみましょう！</p></div>';
   } else {
-    data.forEach(ev => { html += renderEventDetailCard(ev, 'all'); });
+    data.forEach(ev => { html += renderEventDetailCard(ev); });
   }
   document.getElementById('app').innerHTML = html;
   if (document.getElementById('ev-has-date')) toggleDateFields();
 }
+
+/* ===== 自分の活動 ===== */
 
 async function renderMine() {
   const [hostedRes, joinedRes] = await Promise.all([
@@ -190,14 +199,14 @@ async function renderMine() {
 
   let html = `<div class="section-title">📝 自分が主催したもの</div>`;
   if (hosted.length) {
-    hosted.forEach(ev => { html += renderEventDetailCard(ev, 'hosted'); });
+    hosted.forEach(ev => { html += renderEventDetailCard(ev); });
   } else {
     html += '<div class="empty-state"><div class="empty-icon">📝</div><p>まだ主催したものがありません</p></div>';
   }
 
   html += `<div class="section-title">✋ 自分が参加を申し込んだもの</div>`;
   if (joined.length) {
-    joined.forEach(ev => { html += renderEventDetailCard(ev, 'joined'); });
+    joined.forEach(ev => { html += renderEventDetailCard(ev); });
   } else {
     html += '<div class="empty-state"><div class="empty-icon">✋</div><p>まだ参加したものがありません</p></div>';
   }
@@ -205,9 +214,116 @@ async function renderMine() {
   document.getElementById('app').innerHTML = html;
 }
 
+/* ===== ひと ===== */
+
+async function renderPeople() {
+  if (viewUid) return renderPersonDetail(viewUid);
+
+  const params = new URLSearchParams();
+  if (peopleCatFilter) params.set('category', peopleCatFilter);
+  const res = await API('/api/people?' + params);
+  const data = await res.json();
+
+  let html = `
+  <div class="filter-row" style="padding-top:12px">
+    <div class="filter-chip${!peopleCatFilter?' active':''}" onclick="setPeopleCat('')">🌐 すべて</div>
+    ${Object.entries(CATS).map(([k,v])=>`<div class="filter-chip${peopleCatFilter===k?' active':''}" onclick="setPeopleCat('${k}')">${v.icon} ${v.label}</div>`).join('')}
+  </div>`;
+
+  if (!data.length) {
+    html += '<div class="empty-state"><div class="empty-icon">👥</div><p>メンバーが見つかりませんでした</p></div>';
+  } else {
+    data.forEach(u => {
+      const offers = (u.offers||[]).filter(o=>o).slice(0,3);
+      const wants  = (u.wants||[]).filter(w=>w).slice(0,2);
+      html += `<div class="person-card" onclick="openPersonDetail(${u.id})" style="cursor:pointer">
+        <div class="person-head">
+          <div class="person-avatar">${esc(u.avatar||'😊')}</div>
+          <div>
+            <div class="person-name">${esc(u.name)}</div>
+            <div class="person-area">📍 ${esc(u.area||'エリア未設定')}</div>
+          </div>
+          <span class="person-type">${u.type==='group'?'団体':'個人'}</span>
+        </div>
+        ${u.bio ? `<div class="person-bio">${esc(u.bio.slice(0,60))}${u.bio.length>60?'…':''}</div>` : ''}
+        <div class="offer-want-row">
+          ${offers.map(o=>`<span class="ow-tag offer">✨ ${esc(o.title)}</span>`).join('')}
+          ${wants.map(w=>`<span class="ow-tag">🔍 ${esc(w.title)}</span>`).join('')}
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('app').innerHTML = html;
+}
+
+async function renderPersonDetail(uid) {
+  const res = await API('/api/people?uid=' + uid);
+  const { user: u, offers, wants, connection } = await res.json();
+
+  const connStatus = connection?.status;
+  let connBtn = '';
+  if (!connStatus) {
+    connBtn = `<button class="btn btn-primary btn-full" onclick="requestConnect(${uid})">つながり申請を送る</button>`;
+  } else if (connStatus === 'pending') {
+    connBtn = `<button class="btn btn-outline btn-full" disabled>申請中…</button>`;
+  } else if (connStatus === 'accepted') {
+    connBtn = `<button class="btn btn-joined btn-full" disabled>✅ つながっています</button>`;
+  }
+
+  let html = `
+  <div style="padding:14px 14px 0">
+    <button onclick="backToPeople()" style="background:none;border:none;color:var(--green);font-size:14px;cursor:pointer;padding:0">← 一覧に戻る</button>
+  </div>
+  <div class="person-card" style="margin-top:12px">
+    <div class="person-head">
+      <div class="person-avatar" style="width:56px;height:56px;font-size:32px">${esc(u.avatar||'😊')}</div>
+      <div>
+        <div class="person-name" style="font-size:18px">${esc(u.name)}</div>
+        <div class="person-area">📍 ${esc(u.area||'エリア未設定')} ・ ${u.type==='group'?'団体':'個人'}</div>
+      </div>
+    </div>
+    ${u.bio ? `<div class="person-bio" style="font-size:14px">${esc(u.bio)}</div>` : ''}
+    ${connBtn}
+  </div>`;
+
+  if (offers.length) {
+    html += `<div class="section-title">✨ できること・提供できること</div>`;
+    offers.forEach(o => {
+      html += `<div class="activity-card" style="padding:12px 14px">
+        <div class="ac-title" style="font-size:14px">${esc(o.title)}</div>
+        ${o.description ? `<div class="ac-desc">${esc(o.description)}</div>` : ''}
+      </div>`;
+    });
+  }
+
+  if (wants.length) {
+    html += `<div class="section-title">🔍 求めていること</div>`;
+    wants.forEach(w => {
+      html += `<div class="activity-card" style="padding:12px 14px">
+        <div class="ac-title" style="font-size:14px">${esc(w.title)}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('app').innerHTML = html;
+}
+
+function setPeopleCat(cat) { peopleCatFilter = cat; render(); }
+function openPersonDetail(uid) { viewUid = uid; render(); }
+function backToPeople() { viewUid = null; render(); }
+
+async function requestConnect(toUser) {
+  const res = await API('/api/people', { method:'POST', body: JSON.stringify({ action:'request', to_user: toUser }) });
+  if (res.ok) { showAlert('つながり申請を送りました！'); renderPersonDetail(toUser); }
+  else showAlert('エラーが発生しました', 'error');
+}
+
+/* ===== 共通 ===== */
+
 async function render() {
   document.getElementById('app').innerHTML = '<div class="loading">読み込み中…</div>';
   if (activeTab === 'all') await renderAll();
+  else if (activeTab === 'people') await renderPeople();
   else await renderMine();
 }
 
@@ -217,10 +333,7 @@ async function postEvent() {
   if (!title || !desc) return showAlert('タイトルと内容は必須です', 'error');
 
   const hasDate = document.getElementById('ev-has-date').checked;
-  const body = {
-    title, description: desc,
-    category: document.getElementById('ev-cat').value,
-  };
+  const body = { title, description: desc, category: document.getElementById('ev-cat').value };
   if (hasDate) {
     const eventDate = document.getElementById('ev-date').value;
     if (!eventDate) return showAlert('開催日を入力してください', 'error');

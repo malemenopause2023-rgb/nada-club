@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ひとを探す | nadaclub</title>
+<title>ひと | nadaclub</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="app-header"><h1>👥 ひとを探す</h1></header>
+<header class="app-header"><h1>👥 ひと</h1></header>
 
 <div id="alert-area"></div>
 <div id="app"><div class="loading">読み込み中…</div></div>
@@ -15,8 +15,6 @@
 <nav class="bottom-nav">
   <a href="/home.html"     class="nav-item"><span class="nav-icon">🏠</span>ホーム</a>
   <a href="/activity.html" class="nav-item"><span class="nav-icon">📋</span>活動</a>
-  <a href="/people.html"   class="nav-item active"><span class="nav-icon">👥</span>ひとを探す</a>
-  <a href="/resources.html"class="nav-item"><span class="nav-icon">📦</span>リソース</a>
   <a href="/profile.html"  class="nav-item"><span class="nav-icon">👤</span>マイページ</a>
 </nav>
 
@@ -43,11 +41,14 @@ async function render() {
   const params = new URLSearchParams();
   if (catFilter) params.set('category', catFilter);
   const res = await API('/api/people?' + params);
-  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/'; }
+  if (res.status === 401) { localStorage.removeItem('nc_token'); return location.href='/index.html'; }
   const data = await res.json();
 
   let html = `
-  <div class="filter-row" style="padding-top:12px">
+  <div style="padding:10px 14px 4px;font-size:13px;color:var(--text2)">
+    灘区の人・団体の「できること」「求めていること」の一覧です。気になる人にはつながり申請できます。
+  </div>
+  <div class="filter-row" style="padding-top:10px">
     <div class="filter-chip${!catFilter?' active':''}" onclick="setCat('')">🌐 すべて</div>
     ${Object.entries(CATS).map(([k,v])=>`<div class="filter-chip${catFilter===k?' active':''}" onclick="setCat('${k}')">${v}</div>`).join('')}
   </div>`;
@@ -143,7 +144,7 @@ function openDetail(uid) { viewUid = uid; render(); }
 function back() { viewUid = null; render(); }
 
 async function init() {
-  if (!localStorage.getItem('nc_token')) return location.href='/';
+  if (!localStorage.getItem('nc_token')) return location.href='/index.html';
   render();
 }
 init();

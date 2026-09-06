@@ -19,113 +19,33 @@ body {
 .logo { text-align: center; margin-bottom: 20px; }
 .logo-icon { font-size: 48px; }
 .logo-title { font-size: 22px; font-weight: 700; color: #1A4A10; margin-top: 6px; }
-
-.card {
-  background: #fff;
-  border-radius: 20px;
-  padding: 28px 24px;
-  box-shadow: 0 2px 16px rgba(0,0,0,.08);
-}
-
-.step-indicator {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-.step-dot {
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  background: #D0E8C8;
-  transition: background .2s;
-}
+.card { background: #fff; border-radius: 20px; padding: 28px 24px; box-shadow: 0 2px 16px rgba(0,0,0,.08); }
+.step-indicator { display: flex; justify-content: center; gap: 10px; margin-bottom: 24px; }
+.step-dot { width: 12px; height: 12px; border-radius: 50%; background: #D0E8C8; transition: background .2s; }
 .step-dot.active { background: #2D6A1F; }
-
-.question {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1A4A10;
-  text-align: center;
-  margin-bottom: 8px;
-  line-height: 1.4;
-}
-.question-sub {
-  font-size: 15px;
-  color: #7A9A70;
-  text-align: center;
-  margin-bottom: 24px;
-}
-
+.question { font-size: 24px; font-weight: 700; color: #1A4A10; text-align: center; margin-bottom: 8px; line-height: 1.4; }
+.question-sub { font-size: 15px; color: #7A9A70; text-align: center; margin-bottom: 24px; }
 .choices { display: flex; flex-direction: column; gap: 12px; }
 .choice-btn {
-  width: 100%;
-  padding: 20px;
-  border-radius: 14px;
-  border: 2px solid #D0E8C8;
-  background: #F8FDF5;
-  font-size: 20px;
-  font-weight: 600;
-  color: #2A4A20;
-  cursor: pointer;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  transition: all .15s;
-  -webkit-tap-highlight-color: transparent;
+  width: 100%; padding: 20px; border-radius: 14px; border: 2px solid #D0E8C8; background: #F8FDF5;
+  font-size: 20px; font-weight: 600; color: #2A4A20; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 16px; transition: all .15s; -webkit-tap-highlight-color: transparent;
 }
 .choice-btn:active { background: #2D6A1F; color: #fff; border-color: #2D6A1F; }
 .choice-icon { font-size: 32px; flex-shrink: 0; }
 .choice-text { flex: 1; }
 .choice-sub { font-size: 13px; font-weight: 400; color: #7A9A70; margin-top: 3px; }
 .choice-btn:active .choice-sub { color: #C8F0B8; }
-
-.choices-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
-}
-.choices-grid .choice-btn {
-  padding: 18px 8px;
-  font-size: 18px;
-  justify-content: center;
-  text-align: center;
-  flex-direction: column;
-  gap: 0;
-}
-
+.choices-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.choices-grid .choice-btn { padding: 18px 8px; font-size: 18px; justify-content: center; text-align: center; flex-direction: column; gap: 0; }
 .nick-input {
-  width: 100%;
-  padding: 16px;
-  border: 2px solid #D0E8C8;
-  border-radius: 14px;
-  font-size: 20px;
-  font-family: inherit;
-  text-align: center;
-  outline: none;
-  margin-bottom: 8px;
+  width: 100%; padding: 16px; border: 2px solid #D0E8C8; border-radius: 14px;
+  font-size: 20px; font-family: inherit; text-align: center; outline: none; margin-bottom: 8px;
 }
 .nick-input:focus { border-color: #2D6A1F; }
-.nick-note {
-  font-size: 13px; color: #7A9A70; text-align: center; line-height: 1.7; margin-bottom: 20px;
-}
-.big-next-btn {
-  width: 100%; padding: 18px; background: #2D6A1F; color: #fff;
-  border: none; border-radius: 14px; font-size: 19px; font-weight: 700; cursor: pointer;
-}
-
-.back-btn {
-  display: block;
-  width: 100%;
-  text-align: center;
-  margin-top: 16px;
-  font-size: 16px;
-  color: #7A9A70;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 10px;
-}
+.nick-note { font-size: 13px; color: #7A9A70; text-align: center; line-height: 1.7; margin-bottom: 20px; }
+.big-next-btn { width: 100%; padding: 18px; background: #2D6A1F; color: #fff; border: none; border-radius: 14px; font-size: 19px; font-weight: 700; cursor: pointer; }
+.back-btn { display: block; width: 100%; text-align: center; margin-top: 16px; font-size: 16px; color: #7A9A70; background: none; border: none; cursor: pointer; padding: 10px; }
 </style>
 </head>
 <body>
@@ -141,20 +61,22 @@ body {
 </div>
 
 <script>
-const AREAS = [
-  '六甲・篠原', '王子・灘', '大石・都賀',
-  '新在家・西灘', '摩耶', 'その他・灘区全般'
-];
+// ── URLからトークンを受け取って保存（最重要：これが抜けていた） ──
+const _p = new URLSearchParams(location.search);
+const _t = _p.get('token');
+if (_t) {
+  localStorage.setItem('nc_token', _t);
+  history.replaceState({}, '', '/onboard.html');
+}
 
+const AREAS = ['六甲・篠原', '王子・灘', '大石・都賀', '新在家・西灘', '摩耶', 'その他・灘区全般'];
 const state = { nickname: '', type: '', age: '', area: '' };
 let step = 0;
 const TOTAL = 4;
 
 function setDots() {
   document.getElementById('dots').innerHTML =
-    Array.from({ length: TOTAL }, (_, i) =>
-      `<div class="step-dot${i <= step ? ' active' : ''}"></div>`
-    ).join('');
+    Array.from({ length: TOTAL }, (_, i) => `<div class="step-dot${i <= step ? ' active' : ''}"></div>`).join('');
 }
 
 function render() {
@@ -168,54 +90,37 @@ function render() {
       <input id="nick-input" class="nick-input" type="text" placeholder="例：たなか、ろっこうさん" maxlength="20">
       <div class="nick-note">プライバシー保護のため、LINEの本名はアプリ内には表示されません。</div>
       <button class="big-next-btn" onclick="submitNickname()">次へ</button>`;
-  }
-
-  else if (step === 1) {
+  } else if (step === 1) {
     el.innerHTML = `
       <div class="question">あなたは？</div>
       <div class="question-sub">参加のしかたを選んでください</div>
       <div class="choices">
         <button class="choice-btn" onclick="next('type','individual')">
           <span class="choice-icon">👤</span>
-          <div class="choice-text">
-            区民として参加
-            <div class="choice-sub">個人で活動・参加したい方</div>
-          </div>
+          <div class="choice-text">区民として参加<div class="choice-sub">個人で活動・参加したい方</div></div>
         </button>
         <button class="choice-btn" onclick="next('type','group')">
           <span class="choice-icon">🏘️</span>
-          <div class="choice-text">
-            団体として参加
-            <div class="choice-sub">グループ・団体で活動している方</div>
-          </div>
+          <div class="choice-text">団体として参加<div class="choice-sub">グループ・団体で活動している方</div></div>
         </button>
       </div>
       <button class="back-btn" onclick="back()">← 戻る</button>`;
-  }
-
-  else if (step === 2) {
+  } else if (step === 2) {
     el.innerHTML = `
       <div class="question">年代を教えてください</div>
       <div class="question-sub">あなたに合った情報をお届けします</div>
       <div class="choices-grid">
         ${['10代','20代','30代','40代','50代','60代','70代','80代','90代以上'].map(a =>
-          `<button class="choice-btn" onclick="next('age','${a}')">${a}</button>`
-        ).join('')}
+          `<button class="choice-btn" onclick="next('age','${a}')">${a}</button>`).join('')}
       </div>
       <button class="back-btn" onclick="back()">← 戻る</button>`;
-  }
-
-  else if (step === 3) {
+  } else if (step === 3) {
     el.innerHTML = `
       <div class="question">お住まいの地域は？</div>
       <div class="question-sub">灘区内のエリアを選んでください</div>
       <div class="choices">
-        ${AREAS.map(a =>
-          `<button class="choice-btn" onclick="next('area','${a}')">
-            <span class="choice-icon">📍</span>
-            <div class="choice-text">${a}</div>
-          </button>`
-        ).join('')}
+        ${AREAS.map(a => `<button class="choice-btn" onclick="next('area','${a}')">
+          <span class="choice-icon">📍</span><div class="choice-text">${a}</div></button>`).join('')}
       </div>
       <button class="back-btn" onclick="back()">← 戻る</button>`;
   }
@@ -223,10 +128,7 @@ function render() {
 
 function submitNickname() {
   const val = document.getElementById('nick-input').value.trim();
-  if (!val) {
-    alert('ニックネームを入力してください');
-    return;
-  }
+  if (!val) { alert('ニックネームを入力してください'); return; }
   state.nickname = val;
   step = 1;
   render();
@@ -234,17 +136,10 @@ function submitNickname() {
 
 function next(key, value) {
   state[key] = value;
-  if (step < TOTAL - 1) {
-    step++;
-    render();
-  } else {
-    save();
-  }
+  if (step < TOTAL - 1) { step++; render(); } else { save(); }
 }
 
-function back() {
-  if (step > 0) { step--; render(); }
-}
+function back() { if (step > 0) { step--; render(); } }
 
 async function save() {
   const token = localStorage.getItem('nc_token');
@@ -252,10 +147,7 @@ async function save() {
 
   const res = await fetch('/api/profile', {
     method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'update_profile',
       name: state.nickname,
@@ -265,13 +157,10 @@ async function save() {
     }),
   });
 
-  if (res.ok) {
-    location.href = '/home.html';
-  } else {
-    location.href = '/home.html';
-  }
+  location.href = '/home.html';
 }
 
+// トークン保存の後にチェックする（保存前にチェックしていたのが誤り）
 if (!localStorage.getItem('nc_token')) {
   location.href = '/index.html';
 } else {

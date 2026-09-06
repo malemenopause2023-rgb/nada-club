@@ -9,9 +9,15 @@ module.exports = async (req, res) => {
 
   // GET: マイページ全データ取得
   if (req.method === 'GET') {
-    const [{ data: u }, { data: offers }, { data: wants }, { data: conns }, { data: acts }, { data: pending }] =
+    const { data: u } = await db.from('users').select('*').eq('id', uid).single();
+
+    // ユーザーがDBに存在しない場合（削除済み・トークン不整合）
+    if (!u) {
+      return res.status(401).json({ error: 'user_not_found' });
+    }
+
+    const [{ data: offers }, { data: wants }, { data: conns }, { data: acts }, { data: pending }] =
       await Promise.all([
-        db.from('users').select('*').eq('id', uid).single(),
         db.from('offers').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         db.from('wants').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         db.from('connections').select('*, from:from_user(name,avatar), to:to_user(name,avatar)')

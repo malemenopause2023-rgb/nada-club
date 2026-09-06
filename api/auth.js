@@ -6,19 +6,35 @@ module.exports = async (req, res) => {
   const action = url.searchParams.get('action');
 
   if (action === 'login') {
+    const state = Date.now().toString(36) + Math.random().toString(36).slice(2);
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.LINE_CHANNEL_ID,
       redirect_uri: process.env.APP_URL + '/api/auth?action=callback',
-      state: Math.random().toString(36).slice(2),
+      state,
       scope: 'profile openid',
     });
+    res.setHeader('Set-Cookie', `nc_state=${state}; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax`);
     return res.redirect('https://access.line.me/oauth2/v2.1/authorize?' + params);
   }
 
   if (action === 'callback') {
     const code = url.searchParams.get('code');
-    if (!code) return res.redirect('/?error=no_code');
+    const returnedState = url.searchParams.get('state');
+
+    if (!code) return res.status(200).end();
+
+    const cookies = req.headers.cookie || '';
+    const match = cookies.match(/nc_state=([^;]+)/);
+    const savedState = match ? match[1] : null;
+
+    // stateがCookieと一致しない = 本物のログイン完了アクセスではない → 何もせず終了
+    if (!returnedState || returnedState !== savedState) {
+      return res.status(200).end();
+    }
+
+    // 一致した本物のアクセスのみ処理を続行
+    res.setHeader('Set-Cookie', `nc_state=; Path=/; Max-Age=0`);
 
     const tokenRes = await fetch('https://api.line.me/oauth2/v2.1/token', {
       method: 'POST',
@@ -46,7 +62,6 @@ module.exports = async (req, res) => {
 
     let user;
     if (rowList.length === 0) {
-      // Supabaseに行がない → 新規作成（nameはひとまずline_nameと同じにしておく）
       const { data } = await db
         .from('users')
         .insert({ line_uid, line_name, name: line_name, status: 'active' })
@@ -54,7 +69,6 @@ module.exports = async (req, res) => {
         .single();
       user = data;
     } else {
-      // 既にある → line_nameだけ最新化
       const { data } = await db
         .from('users')
         .update({ line_name })
@@ -64,7 +78,6 @@ module.exports = async (req, res) => {
       user = data;
     }
 
-    // ニックネーム未設定の判定：name と line_name が同じなら「まだニックネームを決めていない」とみなす
     const needsNickname = !user.name || user.name === user.line_name;
 
     const token = jwt.sign(

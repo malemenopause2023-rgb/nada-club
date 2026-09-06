@@ -6,32 +6,19 @@ module.exports = async (req, res) => {
   const action = url.searchParams.get('action');
 
   if (action === 'login') {
-    const state = Math.random().toString(36).slice(2) + Date.now();
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.LINE_CHANNEL_ID,
       redirect_uri: process.env.APP_URL + '/api/auth?action=callback',
-      state,
+      state: Math.random().toString(36).slice(2),
       scope: 'profile openid',
     });
-    res.setHeader('Set-Cookie', `nc_state=${state}; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax`);
     return res.redirect('https://access.line.me/oauth2/v2.1/authorize?' + params);
   }
 
   if (action === 'callback') {
     const code = url.searchParams.get('code');
-    const returnedState = url.searchParams.get('state');
-    const cookies = req.headers.cookie || '';
-    const match = cookies.match(/nc_state=([^;]+)/);
-    const savedState = match ? match[1] : null;
-
-    // stateが一致しない、または既に使用済みなら何もせず終了（二重発火対策）
-    if (!code || !returnedState || returnedState !== savedState) {
-      return res.redirect('/?error=invalid_state');
-    }
-
-    // 使用済みにする（Cookieを即座に無効化）
-    res.setHeader('Set-Cookie', `nc_state=; Path=/; Max-Age=0`);
+    if (!code) return res.redirect('/?error=no_code');
 
     const tokenRes = await fetch('https://api.line.me/oauth2/v2.1/token', {
       method: 'POST',
@@ -54,15 +41,12 @@ module.exports = async (req, res) => {
 
     const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
-    const { count } = await db
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('line_uid', line_uid);
-
-    const isNew = count === 0;
+    const { data: rows } = await db.from('users').select('*').eq('line_uid', line_uid);
+    const rowList = rows || [];
 
     let user;
-    if (isNew) {
+    if (rowList.length === 0) {
+      // Supabaseに行がない → 新規作成（nameはひとまずline_nameと同じにしておく）
       const { data } = await db
         .from('users')
         .insert({ line_uid, line_name, name: line_name, status: 'active' })
@@ -70,6 +54,7 @@ module.exports = async (req, res) => {
         .single();
       user = data;
     } else {
+      // 既にある → line_nameだけ最新化
       const { data } = await db
         .from('users')
         .update({ line_name })
@@ -79,13 +64,16 @@ module.exports = async (req, res) => {
       user = data;
     }
 
+    // ニックネーム未設定の判定：name と line_name が同じなら「まだニックネームを決めていない」とみなす
+    const needsNickname = !user.name || user.name === user.line_name;
+
     const token = jwt.sign(
       { user_id: user.id, line_uid, name: user.name, status: user.status },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
 
-    return res.redirect((isNew ? '/onboard' : '/home') + '?token=' + token);
+    return res.redirect((needsNickname ? '/onboard' : '/home') + '?token=' + token);
   }
 
   res.status(400).json({ error: 'invalid action' });

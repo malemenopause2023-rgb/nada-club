@@ -33,11 +33,7 @@ module.exports = async (req, res) => {
         }),
       });
       const tokenData = await tokenRes.json();
-
-      // codeが既に使用済み・無効な場合はLINEがエラーを返す→静かに終了
-      if (!tokenData.access_token) {
-        return res.redirect('/?error=token_failed');
-      }
+      if (!tokenData.access_token) return res.redirect('/?error=token_failed');
 
       const profileRes = await fetch('https://api.line.me/v2/profile', {
         headers: { Authorization: 'Bearer ' + tokenData.access_token },
@@ -46,35 +42,29 @@ module.exports = async (req, res) => {
 
       const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
-      const { data: rows } = await db.from('users').select('*').eq('line_uid', line_uid);
-      const rowList = rows || [];
-      let finalUser;
-      let redirectPath;
+      const { data: before } = await db.from('users').select('id').eq('line_uid', line_uid);
+      const isNew = !before || before.length === 0;
 
-      if (rowList.length > 0) {
-        finalUser = rowList[0];
-        await db.from('users').update({ line_name }).eq('id', finalUser.id);
-        redirectPath = '/home';
-      } else {
-        const { data: newUser, error: insertError } = await db
-          .from('users')
-          .insert({ line_uid, line_name, name: line_name, status: 'active' })
-          .select()
-          .single();
-        if (insertError) return res.redirect('/?error=db_error');
-        finalUser = newUser;
-        redirectPath = '/onboard';
-      }
+      const { data: user, error: upsertError } = await db
+        .from('users')
+        .upsert(
+          { line_uid, line_name, name: line_name, status: 'active' },
+          { onConflict: 'line_uid', ignoreDuplicates: false }
+        )
+        .select()
+        .single();
 
-      if (finalUser.status === 'suspended') return res.redirect('/?error=suspended');
+      if (upsertError) return res.redirect('/?error=db_error');
+
+      if (user.status === 'suspended') return res.redirect('/?error=suspended');
 
       const token = jwt.sign(
-        { user_id: finalUser.id, line_uid, name: finalUser.name, status: finalUser.status },
+        { user_id: user.id, line_uid, name: user.name, status: user.status },
         process.env.JWT_SECRET,
         { expiresIn: '30d' }
       );
 
-      return res.redirect(redirectPath + '?token=' + token);
+      return res.redirect((isNew ? '/onboard' : '/home') + '?token=' + token);
 
     } catch (e) {
       return res.redirect('/?error=server_error');

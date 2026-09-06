@@ -19,6 +19,7 @@ module.exports = async (req, res) => {
   if (action === 'callback') {
     const code = url.searchParams.get('code');
     if (!code) return res.redirect('/?error=no_code');
+
     try {
       const tokenRes = await fetch('https://api.line.me/oauth2/v2.1/token', {
         method: 'POST',
@@ -33,7 +34,6 @@ module.exports = async (req, res) => {
       });
       const tokenData = await tokenRes.json();
       if (!tokenData.access_token) {
-        console.error('token error:', tokenData);
         return res.redirect('/?error=token_failed');
       }
 
@@ -43,37 +43,48 @@ module.exports = async (req, res) => {
       const { userId: line_uid, displayName: line_name } = await profileRes.json();
 
       const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-      let { data: user } = await db.from('users').select('*').eq('line_uid', line_uid).single();
-      const is_new = !user;
 
-      if (!user) {
-        const { data: newUser, error: insertError } = await db.from('users')
+      // 既存ユーザーを検索（存在しなければ data は null）
+      const { data: existingUser } = await db
+        .from('users')
+        .select('*')
+        .eq('line_uid', line_uid)
+        .maybeSingle();
+
+      let finalUser;
+      let redirectPath;
+
+      if (existingUser) {
+        // ケースA：既存ユーザー → home へ
+        await db.from('users').update({ line_name }).eq('id', existingUser.id);
+        finalUser = existingUser;
+        redirectPath = '/home';
+      } else {
+        // ケースB：新規ユーザー → onboard へ
+        const { data: newUser, error: insertError } = await db
+          .from('users')
           .insert({ line_uid, line_name, name: line_name, status: 'active' })
-          .select().single();
+          .select()
+          .single();
         if (insertError) {
           console.error('insert error:', insertError);
           return res.redirect('/?error=db_error');
         }
-        user = newUser;
-      } else {
-        await db.from('users').update({ line_name }).eq('id', user.id);
+        finalUser = newUser;
+        redirectPath = '/onboard';
       }
 
-      if (user.status === 'suspended') {
+      if (finalUser.status === 'suspended') {
         return res.redirect('/?error=suspended');
       }
 
       const token = jwt.sign(
-        { user_id: user.id, line_uid, name: user.name, status: user.status },
+        { user_id: finalUser.id, line_uid, name: finalUser.name, status: finalUser.status },
         process.env.JWT_SECRET,
         { expiresIn: '30d' }
       );
 
-      // 修正：/onboard.html ではなく /onboard（vercel.jsonのリライト経由）
-      if (is_new) {
-        return res.redirect('/onboard?token=' + token);
-      }
-      return res.redirect('/home?token=' + token);
+      return res.redirect(redirectPath + '?token=' + token);
 
     } catch (e) {
       console.error('callback error:', e);

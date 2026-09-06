@@ -6,19 +6,32 @@ module.exports = async (req, res) => {
   const action = url.searchParams.get('action');
 
   if (action === 'login') {
+    const state = Math.random().toString(36).slice(2) + Date.now();
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.LINE_CHANNEL_ID,
       redirect_uri: process.env.APP_URL + '/api/auth?action=callback',
-      state: Math.random().toString(36).slice(2),
+      state,
       scope: 'profile openid',
     });
+    res.setHeader('Set-Cookie', `nc_state=${state}; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax`);
     return res.redirect('https://access.line.me/oauth2/v2.1/authorize?' + params);
   }
 
   if (action === 'callback') {
     const code = url.searchParams.get('code');
-    if (!code) return res.redirect('/?error=no_code');
+    const returnedState = url.searchParams.get('state');
+    const cookies = req.headers.cookie || '';
+    const match = cookies.match(/nc_state=([^;]+)/);
+    const savedState = match ? match[1] : null;
+
+    // stateが一致しない、または既に使用済みなら何もせず終了（二重発火対策）
+    if (!code || !returnedState || returnedState !== savedState) {
+      return res.redirect('/?error=invalid_state');
+    }
+
+    // 使用済みにする（Cookieを即座に無効化）
+    res.setHeader('Set-Cookie', `nc_state=; Path=/; Max-Age=0`);
 
     const tokenRes = await fetch('https://api.line.me/oauth2/v2.1/token', {
       method: 'POST',

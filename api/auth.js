@@ -6,35 +6,19 @@ module.exports = async (req, res) => {
   const action = url.searchParams.get('action');
 
   if (action === 'login') {
-    const state = Date.now().toString(36) + Math.random().toString(36).slice(2);
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.LINE_CHANNEL_ID,
       redirect_uri: process.env.APP_URL + '/api/auth?action=callback',
-      state,
+      state: Math.random().toString(36).slice(2),
       scope: 'profile openid',
     });
-    res.setHeader('Set-Cookie', `nc_state=${state}; Path=/; Max-Age=600; HttpOnly; Secure; SameSite=Lax`);
     return res.redirect('https://access.line.me/oauth2/v2.1/authorize?' + params);
   }
 
   if (action === 'callback') {
     const code = url.searchParams.get('code');
-    const returnedState = url.searchParams.get('state');
-
-    if (!code) return res.status(200).end();
-
-    const cookies = req.headers.cookie || '';
-    const match = cookies.match(/nc_state=([^;]+)/);
-    const savedState = match ? match[1] : null;
-
-    // stateがCookieと一致しない = 本物のログイン完了アクセスではない → 何もせず終了
-    if (!returnedState || returnedState !== savedState) {
-      return res.status(200).end();
-    }
-
-    // 一致した本物のアクセスのみ処理を続行
-    res.setHeader('Set-Cookie', `nc_state=; Path=/; Max-Age=0`);
+    if (!code) return res.redirect('/?error=no_code');
 
     const tokenRes = await fetch('https://api.line.me/oauth2/v2.1/token', {
       method: 'POST',

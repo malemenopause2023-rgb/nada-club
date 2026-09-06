@@ -33,6 +33,8 @@ module.exports = async (req, res) => {
         }),
       });
       const tokenData = await tokenRes.json();
+
+      // codeが既に使用済み・無効な場合はLINEがエラーを返す→静かに終了
       if (!tokenData.access_token) {
         return res.redirect('/?error=token_failed');
       }
@@ -44,39 +46,27 @@ module.exports = async (req, res) => {
 
       const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
-      // 既存ユーザーを検索（存在しなければ data は null）
-      const { data: existingUser } = await db
-        .from('users')
-        .select('*')
-        .eq('line_uid', line_uid)
-        .maybeSingle();
-
+      const { data: rows } = await db.from('users').select('*').eq('line_uid', line_uid);
+      const rowList = rows || [];
       let finalUser;
       let redirectPath;
 
-      if (existingUser) {
-        // ケースA：既存ユーザー → home へ
-        await db.from('users').update({ line_name }).eq('id', existingUser.id);
-        finalUser = existingUser;
+      if (rowList.length > 0) {
+        finalUser = rowList[0];
+        await db.from('users').update({ line_name }).eq('id', finalUser.id);
         redirectPath = '/home';
       } else {
-        // ケースB：新規ユーザー → onboard へ
         const { data: newUser, error: insertError } = await db
           .from('users')
           .insert({ line_uid, line_name, name: line_name, status: 'active' })
           .select()
           .single();
-        if (insertError) {
-          console.error('insert error:', insertError);
-          return res.redirect('/?error=db_error');
-        }
+        if (insertError) return res.redirect('/?error=db_error');
         finalUser = newUser;
         redirectPath = '/onboard';
       }
 
-      if (finalUser.status === 'suspended') {
-        return res.redirect('/?error=suspended');
-      }
+      if (finalUser.status === 'suspended') return res.redirect('/?error=suspended');
 
       const token = jwt.sign(
         { user_id: finalUser.id, line_uid, name: finalUser.name, status: finalUser.status },
@@ -87,7 +77,6 @@ module.exports = async (req, res) => {
       return res.redirect(redirectPath + '?token=' + token);
 
     } catch (e) {
-      console.error('callback error:', e);
       return res.redirect('/?error=server_error');
     }
   }

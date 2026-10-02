@@ -29,7 +29,11 @@
 html { font-size: 16px; }
 body {
   font-family: 'Hiragino Sans', 'Meiryo UI', 'Yu Gothic UI', sans-serif;
-  background: var(--bg);
+  background-image: linear-gradient(rgba(244,246,240,.88), rgba(244,246,240,.88)), url('/bg-sakura.jpg');
+  background-size: cover;
+  background-position: top center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;

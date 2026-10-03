@@ -121,8 +121,8 @@ function toggleForm() {
 function shareFormHtml(eventId) {
   return `
   <div class="form-card" style="margin-top:0">
-    <div class="form-group"><label>感想・シェア</label>
-      <textarea id="share-content-${eventId}" placeholder="参加しての感想や様子をシェアしましょう"></textarea></div>
+    <div class="form-group"><label>シェア・コメント</label>
+      <textarea id="share-content-${eventId}" placeholder="「興味あります！」「参加しました、楽しかったです」など自由に"></textarea></div>
     <button class="btn btn-primary btn-sm" onclick="postShare(${eventId})">投稿する</button>
     <button class="btn btn-outline btn-sm" style="margin-left:8px" onclick="toggleShareForm(null)">キャンセル</button>
   </div>`;
@@ -133,7 +133,7 @@ function toggleShareForm(eventId) {
   render();
 }
 
-function renderEventDetailCard(ev, showShareBtn) {
+function renderEventDetailCard(ev) {
   const cat = CATS[ev.category] || CATS.other;
   const isMe = ev.user_id === myUserId;
   const hasDate = !!ev.event_date;
@@ -158,7 +158,6 @@ function renderEventDetailCard(ev, showShareBtn) {
   }
 
   const canJoin = hasDate && diffDays(ev.event_date) >= 0 && !isMe;
-  const canShare = showShareBtn && (isMe || ev.joined);
 
   let card = `<div class="event-card">
     <div class="ev-head">
@@ -182,14 +181,12 @@ function renderEventDetailCard(ev, showShareBtn) {
               : `<button class="btn btn-sm btn-primary" onclick="joinEvent(${ev.id})">参加を表明する</button>`)
           : ''
       }
+    </div>
+    <div style="padding:0 14px 14px">
+      <button class="btn btn-outline btn-sm btn-full" onclick="toggleShareForm(${ev.id})">💬 シェアする</button>
     </div>`;
 
-  if (canShare) {
-    card += `<div style="padding:0 14px 14px">
-      <button class="btn btn-outline btn-sm btn-full" onclick="toggleShareForm(${ev.id})">💬 感想をシェアする</button>
-    </div>`;
-    if (shareFormEventId === ev.id) card += shareFormHtml(ev.id);
-  }
+  if (shareFormEventId === ev.id) card += shareFormHtml(ev.id);
 
   card += `</div>`;
   return card;
@@ -208,7 +205,7 @@ async function renderAll() {
   if (!data.length) {
     html += '<div class="empty-state"><div class="empty-icon">📋</div><p>まだ何もありません。<br>最初のイベント・相談を投稿してみましょう！</p></div>';
   } else {
-    data.forEach(ev => { html += renderEventDetailCard(ev, false); });
+    data.forEach(ev => { html += renderEventDetailCard(ev); });
   }
   document.getElementById('app').innerHTML = html;
   if (document.getElementById('ev-has-date')) toggleDateFields();
@@ -226,14 +223,14 @@ async function renderMine() {
 
   let html = `<div class="section-title">📝 自分が主催したもの</div>`;
   if (hosted.length) {
-    hosted.forEach(ev => { html += renderEventDetailCard(ev, true); });
+    hosted.forEach(ev => { html += renderEventDetailCard(ev); });
   } else {
     html += '<div class="empty-state"><div class="empty-icon">📝</div><p>まだ主催したものがありません</p></div>';
   }
 
   html += `<div class="section-title">✋ 自分が参加を申し込んだもの</div>`;
   if (joined.length) {
-    joined.forEach(ev => { html += renderEventDetailCard(ev, true); });
+    joined.forEach(ev => { html += renderEventDetailCard(ev); });
   } else {
     html += '<div class="empty-state"><div class="empty-icon">✋</div><p>まだ参加したものがありません</p></div>';
   }
@@ -395,7 +392,7 @@ async function cancelJoin(id) {
 
 async function postShare(eventId) {
   const content = document.getElementById('share-content-' + eventId).value.trim();
-  if (!content) return showAlert('感想を入力してください', 'error');
+  if (!content) return showAlert('内容を入力してください', 'error');
   const res = await API('/api/shares', { method:'POST', body: JSON.stringify({ content, event_id: eventId }) });
   if (res.ok) { showAlert('シェアしました！'); shareFormEventId = null; render(); }
   else showAlert('エラーが発生しました', 'error');
